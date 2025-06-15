@@ -24,17 +24,26 @@ interface QualityAssuranceSectionProps {
     orderId: string;
     product: Product;
     packingPhoto: PackingPhoto | null;
+    orderStatus: string; // add the order status prop
     onPhotoUploaded: (photo: PackingPhoto) => void;
     onPhotoDeleted: () => void;
 }
 
-const QualityAssuranceSection = ({ orderId, product, packingPhoto, onPhotoUploaded, onPhotoDeleted }: QualityAssuranceSectionProps) => {
+const QualityAssuranceSection = ({
+    orderId,
+    product,
+    packingPhoto,
+    orderStatus,
+    onPhotoUploaded,
+    onPhotoDeleted
+}: QualityAssuranceSectionProps) => {
     const [isPhotoCaptureOpen, setIsPhotoCaptureOpen] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const queryClient = useQueryClient();
 
     // Disable photo delete if order is already "packed"
-    const isPacked = packingPhoto ? packingPhoto.ai_analysis_status === "completed" && (packingPhoto.quality_score ?? 0) < 5 : false;
+    // We'll use orderStatus instead of a non-existent packingPhoto.order_status
+    const isPacked = orderStatus === "packed";
 
     // We need to fetch the order status to disable the delete button when packed
     // For compactness, assume the parent workflow already provides order status if needed
@@ -94,7 +103,7 @@ const QualityAssuranceSection = ({ orderId, product, packingPhoto, onPhotoUpload
                         </div>
                         <Button 
                           onClick={handleDeleteClick} 
-                          disabled={isDeleting || (packingPhoto && packingPhoto.order_status === "packed")}
+                          disabled={isDeleting || isPacked}
                           variant="destructive" 
                           size="sm"
                         >

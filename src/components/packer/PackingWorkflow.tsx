@@ -1,4 +1,3 @@
-
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables } from "@/integrations/supabase/types";
@@ -111,6 +110,7 @@ const PackingWorkflow = ({ orderId }: { orderId: string }) => {
                 orderId={orderId} 
                 product={product} 
                 packingPhoto={packingPhoto}
+                orderStatus={order.status}  // Pass the order status down
                 onPhotoUploaded={handlePhotoUploaded}
                 onPhotoDeleted={handlePhotoDeleted}
             />
