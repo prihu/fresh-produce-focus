@@ -139,41 +139,6 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
             await supabase.functions.invoke('analyze-image', {
                 body: { packing_photo_id: photoRecord.id },
             });
-
-            const channel = supabase
-              .channel(`photo-analysis-${photoRecord.id}`)
-              .on<Tables<'packing_photos'>>(
-                'postgres_changes',
-                {
-                  event: 'UPDATE',
-                  schema: 'public',
-                  table: 'packing_photos',
-                  filter: `id=eq.${photoRecord.id}`,
-                },
-                (payload) => {
-                  if (payload.new.ai_analysis_status === 'completed' || payload.new.ai_analysis_status === 'failed') {
-                    queryClient.invalidateQueries({ queryKey: ['order', orderId] });
-                    toast({
-                      title: "Analysis Complete",
-                      description: "The photo analysis has been updated.",
-                    });
-                    supabase.removeChannel(channel);
-                  }
-                }
-              )
-              .subscribe((status, err) => {
-                  if (status === 'SUBSCRIBED') {
-                      console.log(`Subscribed to photo analysis updates for ${photoRecord.id}`);
-                  }
-                  if (status === 'CHANNEL_ERROR' && err) {
-                      console.error('Realtime channel error:', err);
-                  }
-              });
-
-            // Set a timeout to clean up the channel subscription
-            setTimeout(() => {
-                supabase.removeChannel(channel).catch(err => console.error("Error removing channel", err));
-            }, 60000); // 1 minute timeout
             
             onPhotoUploaded(photoRecord);
 

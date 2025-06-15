@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables } from "@/integrations/supabase/types";
@@ -135,7 +136,7 @@ const PackingWorkflow = ({ orderId }: { orderId: string }) => {
             const { error } = await supabase.from('orders').update({ status: 'packed' }).eq('id', orderId);
             if (error) throw new Error(error.message);
         },
-        onSuccess: () => {
+        onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ['orderDetails', orderId] });
             queryClient.invalidateQueries({ queryKey: ['pendingOrders'] });
         },
