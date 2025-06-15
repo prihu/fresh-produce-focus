@@ -15,6 +15,8 @@ interface PhotoCaptureProps {
     onPhotoUploaded: (photo: PackingPhoto) => void;
 }
 
+const MAX_FILE_SIZE_MB = 5;
+
 const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps) => {
     const queryClient = useQueryClient();
     const { toast } = useToast();
@@ -81,6 +83,18 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
+            if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+                toast({
+                    title: "File Too Large",
+                    description: `Please select an image smaller than ${MAX_FILE_SIZE_MB}MB.`,
+                    variant: "destructive",
+                });
+                if (fileInputRef.current) {
+                    fileInputRef.current.value = "";
+                }
+                return;
+            }
+
             if (file.type.startsWith('image/')) {
                 const reader = new FileReader();
                 reader.onloadend = () => {
@@ -104,6 +118,9 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
 
     const handleRetake = () => {
         setCapturedImage(null);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
         // useEffect will call startCamera
     };
 

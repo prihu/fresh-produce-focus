@@ -16,6 +16,8 @@ interface FinalizePackingSectionProps {
     packingPhoto: PackingPhoto | null;
 }
 
+const MIN_QUALITY_SCORE = 5; // Minimum score to allow packing
+
 const FinalizePackingSection = ({ order, packingPhoto }: FinalizePackingSectionProps) => {
     const queryClient = useQueryClient();
 
@@ -35,7 +37,19 @@ const FinalizePackingSection = ({ order, packingPhoto }: FinalizePackingSectionP
     });
 
     const isPacked = order.status === 'packed';
-    const canPack = packingPhoto && packingPhoto.ai_analysis_status === 'completed';
+    const isAnalysisComplete = packingPhoto?.ai_analysis_status === 'completed';
+    const isQualityAcceptable = isAnalysisComplete && (packingPhoto?.quality_score ?? 0) >= MIN_QUALITY_SCORE;
+    
+    const canPack = !isPacked && isAnalysisComplete && isQualityAcceptable;
+
+    let helperMessage = null;
+    if (!isPacked) {
+        if (!isAnalysisComplete) {
+            helperMessage = <p className="text-sm text-muted-foreground mt-2">You must capture a photo and wait for analysis to complete before packing.</p>;
+        } else if (!isQualityAcceptable) {
+            helperMessage = <p className="text-sm text-destructive font-medium mt-2">Quality score of {packingPhoto.quality_score}/10 is below the minimum of {MIN_QUALITY_SCORE}. Item cannot be packed. A new photo is required.</p>;
+        }
+    }
 
     return (
         <Card>
@@ -54,7 +68,7 @@ const FinalizePackingSection = ({ order, packingPhoto }: FinalizePackingSectionP
                         {isPacking ? "Packing..." : "Mark as Packed"}
                     </Button>
                 )}
-                {!canPack && !isPacked && <p className="text-sm text-muted-foreground mt-2">You must capture a photo and wait for analysis to complete before packing.</p>}
+                {helperMessage}
             </CardContent>
         </Card>
     );
