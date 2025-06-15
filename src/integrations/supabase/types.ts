@@ -9,7 +9,59 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      products: {
+        Row: {
+          checked_in_at: string
+          id: string
+          is_paused: boolean
+          name: string
+          price: number
+        }
+        Insert: {
+          checked_in_at?: string
+          id?: string
+          is_paused?: boolean
+          name: string
+          price: number
+        }
+        Update: {
+          checked_in_at?: string
+          id?: string
+          is_paused?: boolean
+          name?: string
+          price?: number
+        }
+        Relationships: []
+      }
+      refunds: {
+        Row: {
+          created_at: string
+          id: string
+          product_id: string
+          reason: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_id: string
+          reason?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_id?: string
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "refunds_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
