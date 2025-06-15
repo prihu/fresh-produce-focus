@@ -60,7 +60,7 @@ const CreateOrderForm = ({ onOrderCreated }: CreateOrderFormProps) => {
       return;
     }
     createOrder({
-      ...values,
+      order_number: values.order_number,
       packer_id: user.id,
     });
   }
