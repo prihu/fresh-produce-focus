@@ -13,6 +13,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          manually_created: boolean
           order_number: string
           packer_id: string | null
           status: string
@@ -20,6 +21,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          manually_created?: boolean
           order_number: string
           packer_id?: string | null
           status?: string
@@ -27,6 +29,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          manually_created?: boolean
           order_number?: string
           packer_id?: string | null
           status?: string

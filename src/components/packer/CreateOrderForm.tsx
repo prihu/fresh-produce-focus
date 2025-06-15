@@ -69,6 +69,7 @@ const CreateOrderForm = ({ onOrderCreated }: CreateOrderFormProps) => {
     createOrder({
       order_number: values.order_number,
       packer_id: user.id,
+      manually_created: true, // <-- Always set this for manual orders!
     });
   }
 

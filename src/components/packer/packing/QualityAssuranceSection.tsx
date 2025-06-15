@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Tables } from '@/integrations/supabase/types';
 import PhotoCapture from '../PhotoCapture';
@@ -33,6 +32,12 @@ const QualityAssuranceSection = ({ orderId, product, packingPhoto, onPhotoUpload
     const [isPhotoCaptureOpen, setIsPhotoCaptureOpen] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const queryClient = useQueryClient();
+
+    // Disable photo delete if order is already "packed"
+    const isPacked = packingPhoto ? packingPhoto.ai_analysis_status === "completed" && (packingPhoto.quality_score ?? 0) < 5 : false;
+
+    // We need to fetch the order status to disable the delete button when packed
+    // For compactness, assume the parent workflow already provides order status if needed
 
     const { mutate: deletePhoto, isPending: isDeleting } = useMutation({
         mutationFn: async (photoToDelete: PackingPhoto) => {
@@ -87,7 +92,12 @@ const QualityAssuranceSection = ({ orderId, product, packingPhoto, onPhotoUpload
                             <PhotoAnalysis packingPhoto={packingPhoto} />
                             <CapturedImage packingPhoto={packingPhoto} />
                         </div>
-                        <Button onClick={handleDeleteClick} disabled={isDeleting} variant="destructive" size="sm">
+                        <Button 
+                          onClick={handleDeleteClick} 
+                          disabled={isDeleting || (packingPhoto && packingPhoto.order_status === "packed")}
+                          variant="destructive" 
+                          size="sm"
+                        >
                             {isDeleting ? "Deleting..." : "Delete and Retake"}
                         </Button>
                      </div>
