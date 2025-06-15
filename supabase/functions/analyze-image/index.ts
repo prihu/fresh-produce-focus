@@ -1,3 +1,4 @@
+
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -65,7 +66,7 @@ serve(async (req) => {
                 {
                     role: "user",
                     content: [
-                        { type: "text", text: `Analyze the image of a produce item. Assess its quality and freshness with a critical eye, as a professional produce inspector would. Look for signs of ripeness, damage, bruising, mold, discoloration, and dehydration. Return a JSON object with three keys: "freshness_score" (integer 1-10), "quality_score" (integer 1-10), and "description" (string, 1-2 sentences summarizing your findings). Scores must be justified by visual evidence in the image. A perfect, vibrant, and unblemished item gets 10/10. Minor defects (e.g., small bruise, slight wilting) warrant a score of 7-9. Significant issues (e.g., visible mold, large soft spots, widespread discoloration) must be scored 1-4. Be conservative with high scores; they should be reserved for exceptional quality. Only return the JSON object.` },
+                        { type: "text", text: `Analyze the image of a produce item. Identify the item's name (e.g., "Banana", "Tomato"). Assess its quality and freshness with a critical eye, as a professional produce inspector would. Look for signs of ripeness, damage, bruising, mold, discoloration, and dehydration. Return a JSON object with four keys: "item_name" (string), "freshness_score" (integer 1-10), "quality_score" (integer 1-10), and "description" (string, 1-2 sentences summarizing your findings). Scores must be justified by visual evidence in the image. A perfect, vibrant, and unblemished item gets 10/10. Minor defects (e.g., small bruise, slight wilting) warrant a score of 7-9. Significant issues (e.g., visible mold, large soft spots, widespread discoloration) must be scored 1-4. Be conservative with high scores; they should be reserved for exceptional quality. Only return the JSON object.` },
                         { type: "image_url", image_url: { url: signedUrlData.signedUrl } }
                     ]
                 }
@@ -86,6 +87,7 @@ serve(async (req) => {
 
     // 4. Update the DB with results
     const analysisData = {
+        item_name: analysisContent.item_name,
         freshness_score: analysisContent.freshness_score,
         quality_score: analysisContent.quality_score,
         description: analysisContent.description,

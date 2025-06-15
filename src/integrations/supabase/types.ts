@@ -40,6 +40,7 @@ export type Database = {
           description: string | null
           freshness_score: number | null
           id: string
+          item_name: string | null
           order_id: string
           product_id: string
           quality_score: number | null
@@ -51,6 +52,7 @@ export type Database = {
           description?: string | null
           freshness_score?: number | null
           id?: string
+          item_name?: string | null
           order_id: string
           product_id: string
           quality_score?: number | null
@@ -62,6 +64,7 @@ export type Database = {
           description?: string | null
           freshness_score?: number | null
           id?: string
+          item_name?: string | null
           order_id?: string
           product_id?: string
           quality_score?: number | null
