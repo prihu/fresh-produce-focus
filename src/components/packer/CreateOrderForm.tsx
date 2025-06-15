@@ -34,8 +34,8 @@ const CreateOrderForm = ({ onOrderCreated }: CreateOrderFormProps) => {
     },
   });
 
-  const { mutate: createOrder, isPending } = useMutation({
-    mutationFn: async (newOrder: z.infer<typeof formSchema>) => {
+  const { mutate: createOrder, isPending } = useMutation<void, Error, z.infer<typeof formSchema>>({
+    mutationFn: async (newOrder) => {
       const { error } = await supabase.from("orders").insert(newOrder);
       if (error) {
         throw new Error(error.message);
