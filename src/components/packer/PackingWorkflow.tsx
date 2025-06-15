@@ -16,6 +16,7 @@ import { Skeleton } from "../ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { Badge } from "../ui/badge";
+import { CheckCircle } from "lucide-react";
 
 type Order = Tables<'orders'>;
 type Product = Tables<'products'>;
@@ -183,7 +184,11 @@ const PackingWorkflow = ({ orderId }: { orderId: string }) => {
                 </CardHeader>
                 <CardContent>
                     {isPacked ? (
-                        <Alert variant="success"><AlertTitle>Completed!</AlertTitle><AlertDescription>This order has been packed.</AlertDescription></Alert>
+                        <Alert>
+                            <CheckCircle className="h-4 w-4" />
+                            <AlertTitle>Completed!</AlertTitle>
+                            <AlertDescription>This order has been packed.</AlertDescription>
+                        </Alert>
                     ) : (
                         <Button onClick={() => markAsPacked()} disabled={!canPack || isPacking}>
                             {isPacking ? "Packing..." : "Mark as Packed"}

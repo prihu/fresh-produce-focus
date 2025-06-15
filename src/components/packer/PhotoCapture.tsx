@@ -1,10 +1,9 @@
-
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
-import { Camera, Upload, Check, RefreshCw } from 'lucide-react';
+import { Camera, Check, RefreshCw } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
 
 type PackingPhoto = Tables<'packing_photos'>;
