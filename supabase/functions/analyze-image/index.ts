@@ -1,4 +1,3 @@
-
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -66,7 +65,7 @@ serve(async (req) => {
                 {
                     role: "user",
                     content: [
-                        { type: "text", text: `Analyze the following image of a produce item. Provide a detailed assessment of its quality and freshness. I need you to return a JSON object with three keys: "freshness_score" (an integer from 1 to 10), "quality_score" (an integer from 1 to 10), and "description" (a string of 1-2 sentences summarizing your findings). The scores should reflect a professional quality check. For example, a perfect, fresh item should get 10/10. An item with minor blemishes might get an 8 or 9. A visibly rotting item should get a 1 or 2. Only return the JSON object.` },
+                        { type: "text", text: `Analyze the image of a produce item. Assess its quality and freshness with a critical eye, as a professional produce inspector would. Look for signs of ripeness, damage, bruising, mold, discoloration, and dehydration. Return a JSON object with three keys: "freshness_score" (integer 1-10), "quality_score" (integer 1-10), and "description" (string, 1-2 sentences summarizing your findings). Scores must be justified by visual evidence in the image. A perfect, vibrant, and unblemished item gets 10/10. Minor defects (e.g., small bruise, slight wilting) warrant a score of 7-9. Significant issues (e.g., visible mold, large soft spots, widespread discoloration) must be scored 1-4. Be conservative with high scores; they should be reserved for exceptional quality. Only return the JSON object.` },
                         { type: "image_url", image_url: { url: signedUrlData.signedUrl } }
                     ]
                 }
