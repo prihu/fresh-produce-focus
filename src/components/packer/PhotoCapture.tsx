@@ -1,3 +1,4 @@
+
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,12 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
 
     const startCamera = useCallback(async () => {
         try {
+            // Ensure any existing stream is stopped before starting a new one.
+            if (videoRef.current && videoRef.current.srcObject) {
+                const currentStream = videoRef.current.srcObject as MediaStream;
+                currentStream.getTracks().forEach(track => track.stop());
+            }
+            
             const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
             setStream(mediaStream);
             if (videoRef.current) {
@@ -41,10 +48,15 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
 
     useEffect(() => {
         startCamera();
+        
         return () => {
-            stream?.getTracks().forEach(track => track.stop());
+            // On unmount, stop the stream.
+            if (videoRef.current && videoRef.current.srcObject) {
+                const currentStream = videoRef.current.srcObject as MediaStream;
+                currentStream.getTracks().forEach(track => track.stop());
+            }
         };
-    }, [startCamera, stream]);
+    }, [startCamera]);
 
     const handleCapture = () => {
         if (videoRef.current && canvasRef.current) {
@@ -55,6 +67,8 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
             const context = canvas.getContext('2d');
             context?.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
             setCapturedImage(canvas.toDataURL('image/webp', 0.8));
+            
+            // Stop the stream after capture
             stream?.getTracks().forEach(track => track.stop());
             setStream(null);
         }
