@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { Tables } from '@/integrations/supabase/types';
 import PhotoCapture from '../PhotoCapture';
+import PhotoUpload from '../PhotoUpload';
 import PhotoAnalysis from './PhotoAnalysis';
 import CapturedImage from './CapturedImage';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,7 @@ interface QualityAssuranceSectionProps {
 
 const QualityAssuranceSection = ({ orderId, product, packingPhoto, onPhotoUploaded, onPhotoDeleted }: QualityAssuranceSectionProps) => {
     const [isPhotoCaptureOpen, setIsPhotoCaptureOpen] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
     const queryClient = useQueryClient();
 
     const { mutate: deletePhoto, isPending: isDeleting } = useMutation({
@@ -89,20 +91,32 @@ const QualityAssuranceSection = ({ orderId, product, packingPhoto, onPhotoUpload
                             {isDeleting ? "Deleting..." : "Delete and Retake"}
                         </Button>
                      </div>
-                ) : <p className="text-sm text-muted-foreground">No photo captured yet for this item.</p>}
-               
-                {!packingPhoto && (
-                    <Dialog open={isPhotoCaptureOpen} onOpenChange={setIsPhotoCaptureOpen}>
-                        <DialogTrigger asChild>
-                            <Button>Capture Photo</Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-4xl">
-                            <DialogHeader>
-                                <DialogTitle>Capture Produce Photo</DialogTitle>
-                            </DialogHeader>
-                            <PhotoCapture orderId={orderId} productId={product.id} onPhotoUploaded={handlePhotoUploaded} />
-                        </DialogContent>
-                    </Dialog>
+                ) : (
+                    <>
+                        <p className="text-sm text-muted-foreground">No photo captured yet for this item.</p>
+                        
+                        <div className="flex flex-col sm:flex-row gap-3">
+                            <Dialog open={isPhotoCaptureOpen} onOpenChange={setIsPhotoCaptureOpen}>
+                                <DialogTrigger asChild>
+                                    <Button>Capture Photo</Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-4xl">
+                                    <DialogHeader>
+                                        <DialogTitle>Capture Produce Photo</DialogTitle>
+                                    </DialogHeader>
+                                    <PhotoCapture orderId={orderId} productId={product.id} onPhotoUploaded={handlePhotoUploaded} />
+                                </DialogContent>
+                            </Dialog>
+                            
+                            <PhotoUpload 
+                                orderId={orderId} 
+                                productId={product.id} 
+                                onPhotoUploaded={onPhotoUploaded}
+                                isUploading={isUploading}
+                                onUploadingChange={setIsUploading}
+                            />
+                        </div>
+                    </>
                 )}
             </CardContent>
         </Card>

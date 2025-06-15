@@ -4,7 +4,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Tables } from '@/integrations/supabase/types';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Camera, Upload, RefreshCw, Check, Loader2, AlertTriangle } from 'lucide-react';
+import { Camera, RefreshCw, Check, Loader2, AlertTriangle } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
 type PackingPhoto = Tables<'packing_photos'>;
@@ -15,13 +15,10 @@ interface PhotoCaptureProps {
     onPhotoUploaded: (photo: PackingPhoto) => void;
 }
 
-const MAX_FILE_SIZE_MB = 15;
-
 const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps) => {
     const { toast } = useToast();
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
     
     const [stream, setStream] = useState<MediaStream | null>(null);
     const [capturedImage, setCapturedImage] = useState<string | null>(null);
@@ -95,44 +92,9 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
         setCapturedImage(imageData);
         stopCamera();
     };
-    
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-                toast({
-                    title: "File Too Large",
-                    description: `Please select an image smaller than ${MAX_FILE_SIZE_MB}MB.`,
-                    variant: "destructive",
-                });
-                if (fileInputRef.current) {
-                    fileInputRef.current.value = "";
-                }
-                return;
-            }
-
-            if (file.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    setCapturedImage(reader.result as string);
-                    stopCamera();
-                };
-                reader.readAsDataURL(file);
-            } else {
-                toast({
-                    title: "Invalid File Type",
-                    description: "Please select an image file.",
-                    variant: "destructive",
-                });
-            }
-        }
-    };
 
     const handleRetake = () => {
         setCapturedImage(null);
-        if (fileInputRef.current) {
-            fileInputRef.current.value = "";
-        }
     };
 
     const handleUpload = async () => {
@@ -225,24 +187,11 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
                         </Button>
                     </>
                 ) : (
-                    <>
-                        <Button onClick={handleCapture} disabled={!stream || isLoading || !!error}>
-                            <Camera className="mr-2 h-4 w-4" /> Capture
-                        </Button>
-                        <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isLoading || !!error}>
-                            <Upload className="mr-2 h-4 w-4"/> Upload Photo
-                        </Button>
-                    </>
+                    <Button onClick={handleCapture} disabled={!stream || isLoading || !!error}>
+                        <Camera className="mr-2 h-4 w-4" /> Capture
+                    </Button>
                 )}
             </div>
-
-            <input
-                type="file"
-                ref={fileInputRef}
-                className="hidden"
-                accept="image/*"
-                onChange={handleFileChange}
-            />
         </div>
     );
 };
