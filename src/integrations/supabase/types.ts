@@ -9,6 +9,78 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      orders: {
+        Row: {
+          created_at: string
+          id: string
+          order_number: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          order_number: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          order_number?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      packing_photos: {
+        Row: {
+          ai_analysis_status: string
+          created_at: string
+          description: string | null
+          freshness_score: number | null
+          id: string
+          order_id: string
+          product_id: string
+          quality_score: number | null
+          storage_path: string
+        }
+        Insert: {
+          ai_analysis_status?: string
+          created_at?: string
+          description?: string | null
+          freshness_score?: number | null
+          id?: string
+          order_id: string
+          product_id: string
+          quality_score?: number | null
+          storage_path: string
+        }
+        Update: {
+          ai_analysis_status?: string
+          created_at?: string
+          description?: string | null
+          freshness_score?: number | null
+          id?: string
+          order_id?: string
+          product_id?: string
+          quality_score?: number | null
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "packing_photos_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "packing_photos_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           checked_in_at: string
