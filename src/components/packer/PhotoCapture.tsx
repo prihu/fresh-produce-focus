@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Tables } from '@/integrations/supabase/types';
@@ -23,7 +22,7 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [capturedImage, setCapturedImage] = useState<string | null>(null);
 
-    const { stream, startCamera, stopCamera, captureImage, canvasRef } = useCamera(videoRef);
+    const { stream, startCamera, stopCamera, captureImage, canvasRef, isLoading, error } = useCamera(videoRef);
     const { uploadPhoto, isUploading } = usePhotoUpload({ orderId, productId, onPhotoUploaded });
 
     useEffect(() => {
@@ -103,6 +102,8 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
                     stream={stream}
                     onCapture={handleCapture}
                     onUploadClick={() => fileInputRef.current?.click()}
+                    isLoading={isLoading}
+                    error={error}
                 />
             )}
             <input
