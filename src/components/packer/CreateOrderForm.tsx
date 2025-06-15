@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Database } from "@/integrations/supabase/types";
+import { useAuth } from "@/contexts/AuthContext";
 
 const formSchema = z.object({
   order_number: z.string().min(1, { message: "Order number cannot be empty." }),
@@ -27,6 +28,7 @@ type CreateOrderFormProps = {
 
 const CreateOrderForm = ({ onOrderCreated }: CreateOrderFormProps) => {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -36,10 +38,11 @@ const CreateOrderForm = ({ onOrderCreated }: CreateOrderFormProps) => {
 
   const { mutate: createOrder, isPending } = useMutation({
     mutationFn: async (newOrder: Database['public']['Tables']['orders']['Insert']) => {
-      const { error } = await supabase.from("orders").insert(newOrder);
+      const { data, error } = await supabase.from("orders").insert(newOrder).select();
       if (error) {
         throw new Error(error.message);
       }
+      return data;
     },
     onSuccess: () => {
       toast.success("Order created successfully!");
@@ -52,7 +55,14 @@ const CreateOrderForm = ({ onOrderCreated }: CreateOrderFormProps) => {
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    createOrder(values);
+    if (!user) {
+      toast.error("You must be logged in to create an order.");
+      return;
+    }
+    createOrder({
+      ...values,
+      packer_id: user.id,
+    });
   }
 
   return (

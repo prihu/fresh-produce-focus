@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CheckCircle } from "lucide-react";
+import { toast } from "sonner";
 
 type Order = Tables<'orders'>;
 type PackingPhoto = Tables<'packing_photos'>;
@@ -23,9 +24,13 @@ const FinalizePackingSection = ({ order, packingPhoto }: FinalizePackingSectionP
             const { error } = await supabase.from('orders').update({ status: 'packed' }).eq('id', order.id);
             if (error) throw new Error(error.message);
         },
-        onSettled: () => {
+        onSuccess: () => {
+            toast.success("Order successfully marked as packed.");
             queryClient.invalidateQueries({ queryKey: ['orderDetails', order.id] });
             queryClient.invalidateQueries({ queryKey: ['pendingOrders'] });
+        },
+        onError: (error) => {
+            toast.error(`Failed to pack order: ${error.message}`);
         },
     });
 
