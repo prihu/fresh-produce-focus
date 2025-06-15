@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Tables } from '@/integrations/supabase/types';
@@ -5,6 +6,8 @@ import { useCamera } from '@/hooks/useCamera';
 import { usePhotoUpload } from '@/hooks/usePhotoUpload';
 import CameraView from './photo-capture/CameraView';
 import ImagePreview from './photo-capture/ImagePreview';
+import { Button } from '@/components/ui/button';
+import { Camera, Upload, RefreshCw, Check } from 'lucide-react';
 
 type PackingPhoto = Tables<'packing_photos'>;
 
@@ -89,23 +92,38 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
     return (
         <div className="flex flex-col items-center space-y-4">
             {capturedImage ? (
-                <ImagePreview 
-                    image={capturedImage}
-                    isUploading={isUploading}
-                    onRetake={handleRetake}
-                    onUpload={handleUpload}
-                />
+                <ImagePreview image={capturedImage} />
             ) : (
                 <CameraView
                     videoRef={videoRef}
                     canvasRef={canvasRef}
-                    stream={stream}
-                    onCapture={handleCapture}
-                    onUploadClick={() => fileInputRef.current?.click()}
                     isLoading={isLoading}
                     error={error}
                 />
             )}
+
+            <div className="flex space-x-4">
+                {capturedImage ? (
+                    <>
+                        <Button onClick={handleRetake} variant="outline" disabled={isUploading}>
+                            <RefreshCw className="mr-2 h-4 w-4" /> Retake
+                        </Button>
+                        <Button onClick={handleUpload} disabled={isUploading}>
+                            {isUploading ? "Uploading..." : <><Check className="mr-2 h-4 w-4" /> Confirm & Upload</>}
+                        </Button>
+                    </>
+                ) : (
+                    <>
+                        <Button onClick={handleCapture} disabled={!stream || isLoading || !!error}>
+                            <Camera className="mr-2 h-4 w-4" /> Capture
+                        </Button>
+                        <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isLoading || !!error}>
+                            <Upload className="mr-2 h-4 w-4"/> Upload Photo
+                        </Button>
+                    </>
+                )}
+            </div>
+
             <input
                 type="file"
                 ref={fileInputRef}

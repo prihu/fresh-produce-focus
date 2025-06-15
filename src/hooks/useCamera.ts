@@ -1,4 +1,5 @@
-import { useState, useCallback, useRef, RefObject } from 'react';
+
+import { useState, useCallback, useRef, RefObject, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
 export const useCamera = (videoRef: RefObject<HTMLVideoElement>) => {
@@ -7,15 +8,11 @@ export const useCamera = (videoRef: RefObject<HTMLVideoElement>) => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const stopCamera = useCallback(() => {
         if (stream) {
             stream.getTracks().forEach(track => track.stop());
             setStream(null);
-        }
-        if (timeoutRef.current) {
-            clearTimeout(timeoutRef.current);
         }
     }, [stream]);
 
@@ -24,18 +21,6 @@ export const useCamera = (videoRef: RefObject<HTMLVideoElement>) => {
         setIsLoading(true);
         setError(null);
         
-        timeoutRef.current = setTimeout(() => {
-            const errorMessage = "Camera failed to start in time. It might be in use by another app or permissions are blocked.";
-            setError(errorMessage);
-            toast({
-                title: "Camera Timeout",
-                description: errorMessage,
-                variant: "destructive",
-            });
-            setIsLoading(false);
-            stopCamera();
-        }, 10000); // 10 seconds timeout
-
         const constraints = {
             video: { 
                 facingMode: { ideal: 'environment' },
@@ -58,32 +43,16 @@ export const useCamera = (videoRef: RefObject<HTMLVideoElement>) => {
                 });
             }
             
-            setStream(mediaStream);
             if (videoRef.current) {
-                const videoEl = videoRef.current;
-                videoEl.srcObject = mediaStream;
-                
-                const handleCanPlay = () => {
-                    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-                    setIsLoading(false);
-                    videoEl.removeEventListener('canplay', handleCanPlay);
-                };
-                videoEl.addEventListener('canplay', handleCanPlay);
-
-                videoEl.onerror = () => {
-                    setError("Video stream error.");
-                    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-                    setIsLoading(false);
-                }
+                videoRef.current.srcObject = mediaStream;
+                setStream(mediaStream);
             } else {
                 console.warn("videoRef.current is null when trying to set stream.");
                 setError("Video element not available.");
-                if (timeoutRef.current) clearTimeout(timeoutRef.current);
                 setIsLoading(false);
             }
         } catch (err: any) {
             console.error("Error accessing camera:", err);
-            if (timeoutRef.current) clearTimeout(timeoutRef.current);
             let errorMessage = "Could not access camera. Please check permissions.";
             if (err.name === 'NotAllowedError') {
                 errorMessage = "Camera access was denied. Please grant permission in your browser settings.";
@@ -102,6 +71,59 @@ export const useCamera = (videoRef: RefObject<HTMLVideoElement>) => {
             setIsLoading(false);
         }
     }, [toast, videoRef, stopCamera]);
+
+    useEffect(() => {
+        const videoEl = videoRef.current;
+        if (!stream || !videoEl) {
+            if (!error) setIsLoading(true);
+            return;
+        }
+
+        let stillLoading = true;
+        const loadingTimeout = setTimeout(() => {
+            if (stillLoading) {
+                console.error("Camera loading timed out.");
+                setError("Camera timed out. Please try again or check permissions.");
+                setIsLoading(false);
+                stopCamera();
+            }
+        }, 10000);
+
+        const handleLoadedData = () => {
+            videoEl.play().catch(e => {
+                console.error("Video play failed", e);
+                setError("Could not start video playback.");
+                setIsLoading(false);
+            });
+        };
+        
+        const handlePlaying = () => {
+            stillLoading = false;
+            setIsLoading(false);
+            clearTimeout(loadingTimeout);
+        }
+        
+        const handleError = () => {
+            setError("A video error occurred.");
+            setIsLoading(false);
+            clearTimeout(loadingTimeout);
+        }
+
+        videoEl.addEventListener('loadeddata', handleLoadedData);
+        videoEl.addEventListener('playing', handlePlaying);
+        videoEl.addEventListener('error', handleError);
+        
+        if (videoEl.readyState >= 3) {
+            handleLoadedData();
+        }
+
+        return () => {
+            clearTimeout(loadingTimeout);
+            videoEl.removeEventListener('loadeddata', handleLoadedData);
+            videoEl.removeEventListener('playing', handlePlaying);
+            videoEl.removeEventListener('error', handleError);
+        };
+    }, [stream, videoRef, error, stopCamera]);
 
     const captureImage = useCallback((): string | null => {
         if (videoRef.current && canvasRef.current && videoRef.current.readyState >= 3) {
