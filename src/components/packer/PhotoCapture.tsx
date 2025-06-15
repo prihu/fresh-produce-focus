@@ -1,3 +1,4 @@
+
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -15,7 +16,7 @@ interface PhotoCaptureProps {
     onPhotoUploaded: (photo: PackingPhoto) => void;
 }
 
-const MAX_FILE_SIZE_MB = 5;
+const MAX_FILE_SIZE_MB = 15;
 
 const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps) => {
     const queryClient = useQueryClient();
