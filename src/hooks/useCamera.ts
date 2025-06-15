@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useRef, RefObject } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -8,11 +7,15 @@ export const useCamera = (videoRef: RefObject<HTMLVideoElement>) => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const stopCamera = useCallback(() => {
         if (stream) {
             stream.getTracks().forEach(track => track.stop());
             setStream(null);
+        }
+        if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
         }
     }, [stream]);
 
@@ -21,6 +24,18 @@ export const useCamera = (videoRef: RefObject<HTMLVideoElement>) => {
         setIsLoading(true);
         setError(null);
         
+        timeoutRef.current = setTimeout(() => {
+            const errorMessage = "Camera failed to start in time. It might be in use by another app or permissions are blocked.";
+            setError(errorMessage);
+            toast({
+                title: "Camera Timeout",
+                description: errorMessage,
+                variant: "destructive",
+            });
+            setIsLoading(false);
+            stopCamera();
+        }, 10000); // 10 seconds timeout
+
         const constraints = {
             video: { 
                 facingMode: { ideal: 'environment' },
@@ -45,21 +60,30 @@ export const useCamera = (videoRef: RefObject<HTMLVideoElement>) => {
             
             setStream(mediaStream);
             if (videoRef.current) {
-                videoRef.current.srcObject = mediaStream;
-                videoRef.current.onloadedmetadata = () => {
+                const videoEl = videoRef.current;
+                videoEl.srcObject = mediaStream;
+                
+                const handleCanPlay = () => {
+                    if (timeoutRef.current) clearTimeout(timeoutRef.current);
                     setIsLoading(false);
+                    videoEl.removeEventListener('canplay', handleCanPlay);
                 };
-                videoRef.current.onerror = () => {
+                videoEl.addEventListener('canplay', handleCanPlay);
+
+                videoEl.onerror = () => {
                     setError("Video stream error.");
+                    if (timeoutRef.current) clearTimeout(timeoutRef.current);
                     setIsLoading(false);
                 }
             } else {
                 console.warn("videoRef.current is null when trying to set stream.");
                 setError("Video element not available.");
+                if (timeoutRef.current) clearTimeout(timeoutRef.current);
                 setIsLoading(false);
             }
         } catch (err: any) {
             console.error("Error accessing camera:", err);
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
             let errorMessage = "Could not access camera. Please check permissions.";
             if (err.name === 'NotAllowedError') {
                 errorMessage = "Camera access was denied. Please grant permission in your browser settings.";

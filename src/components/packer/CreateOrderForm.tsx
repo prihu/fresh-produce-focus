@@ -1,4 +1,3 @@
-
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -52,7 +51,13 @@ const CreateOrderForm = ({ onOrderCreated }: CreateOrderFormProps) => {
     },
     onError: (error) => {
       console.error("useMutation onError:", error);
-      toast.error(`Failed to create order: ${error.message}`);
+      if (error.message.includes('orders_order_number_key')) {
+        const message = 'This order number already exists.';
+        toast.error(message);
+        form.setError('order_number', { type: 'manual', message });
+      } else {
+        toast.error(`Failed to create order: ${error.message}`);
+      }
     },
   });
 

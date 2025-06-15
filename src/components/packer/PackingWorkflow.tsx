@@ -92,6 +92,10 @@ const PackingWorkflow = ({ orderId }: { orderId: string }) => {
         setPackingPhoto(photo);
     };
 
+    const handlePhotoDeleted = () => {
+        setPackingPhoto(null);
+    };
+
     if (isLoadingOrder || isLoadingProduct || isLoadingPhoto) {
         return <Skeleton className="h-96 w-full" />;
     }
@@ -108,6 +112,7 @@ const PackingWorkflow = ({ orderId }: { orderId: string }) => {
                 product={product} 
                 packingPhoto={packingPhoto}
                 onPhotoUploaded={handlePhotoUploaded}
+                onPhotoDeleted={handlePhotoDeleted}
             />
             <FinalizePackingSection order={order} packingPhoto={packingPhoto} />
         </div>
