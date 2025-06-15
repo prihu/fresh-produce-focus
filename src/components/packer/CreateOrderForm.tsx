@@ -1,3 +1,4 @@
+
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -37,17 +38,14 @@ const CreateOrderForm = ({ onOrderCreated }: CreateOrderFormProps) => {
 
   const { mutate: createOrder, isPending } = useMutation({
     mutationFn: async (newOrder: Database['public']['Tables']['orders']['Insert']) => {
-      console.log("useMutation mutationFn started with:", newOrder);
       const { data, error } = await supabase.from("orders").insert(newOrder).select();
       if (error) {
         console.error("Error creating order in supabase:", error);
         throw new Error(error.message);
       }
-      console.log("Order created successfully in supabase:", data);
       return data;
     },
     onSuccess: (data) => {
-      console.log("useMutation onSuccess, data:", data);
       toast.success("Order created successfully!");
       queryClient.invalidateQueries({ queryKey: ["pendingOrders"] });
       onOrderCreated();
@@ -59,13 +57,10 @@ const CreateOrderForm = ({ onOrderCreated }: CreateOrderFormProps) => {
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log("CreateOrderForm onSubmit called");
     if (!user) {
-      console.log("User not logged in.");
       toast.error("You must be logged in to create an order.");
       return;
     }
-    console.log("User is logged in, creating order for user:", user.id);
     createOrder({
       order_number: values.order_number,
       packer_id: user.id,

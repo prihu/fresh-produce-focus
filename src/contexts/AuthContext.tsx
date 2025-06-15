@@ -17,11 +17,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    console.log("AuthContext: useEffect started");
     const getSession = async () => {
-      console.log("AuthContext: getting session...");
       const { data: { session } } = await supabase.auth.getSession();
-      console.log("AuthContext: session received:", session);
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -30,7 +27,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     getSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      console.log("AuthContext: onAuthStateChange event:", _event, "session:", session);
       setSession(session);
       setUser(session?.user ?? null);
     });
