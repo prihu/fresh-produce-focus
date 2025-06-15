@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
-import { Camera, Check, RefreshCw } from 'lucide-react';
+import { Camera, Check, RefreshCw, Upload } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
 
 type PackingPhoto = Tables<'packing_photos'>;
@@ -19,6 +19,7 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
     const { toast } = useToast();
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [stream, setStream] = useState<MediaStream | null>(null);
     const [capturedImage, setCapturedImage] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
@@ -47,16 +48,18 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
     }, [toast]);
 
     useEffect(() => {
-        startCamera();
+        if (!capturedImage) {
+            startCamera();
+        }
         
         return () => {
-            // On unmount, stop the stream.
+            // On unmount or when capturedImage is set, stop the stream.
             if (videoRef.current && videoRef.current.srcObject) {
                 const currentStream = videoRef.current.srcObject as MediaStream;
                 currentStream.getTracks().forEach(track => track.stop());
             }
         };
-    }, [startCamera]);
+    }, [capturedImage, startCamera]);
 
     const handleCapture = () => {
         if (videoRef.current && canvasRef.current) {
@@ -73,10 +76,34 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
             setStream(null);
         }
     };
+    
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    setCapturedImage(reader.result as string);
+                    // Stop the camera stream if it's running
+                    if (stream) {
+                        stream.getTracks().forEach(track => track.stop());
+                        setStream(null);
+                    }
+                };
+                reader.readAsDataURL(file);
+            } else {
+                toast({
+                    title: "Invalid File Type",
+                    description: "Please select an image file.",
+                    variant: "destructive",
+                });
+            }
+        }
+    };
 
     const handleRetake = () => {
         setCapturedImage(null);
-        startCamera();
+        // useEffect will call startCamera
     };
 
     const handleUpload = async () => {
@@ -146,11 +173,23 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
                         </Button>
                     </>
                 ) : (
-                    <Button onClick={handleCapture} disabled={!stream}>
-                        <Camera className="mr-2 h-4 w-4" /> Capture
-                    </Button>
+                    <>
+                        <Button onClick={handleCapture} disabled={!stream}>
+                            <Camera className="mr-2 h-4 w-4" /> Capture
+                        </Button>
+                        <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+                           <Upload className="mr-2 h-4 w-4"/> Upload Photo
+                        </Button>
+                    </>
                 )}
             </div>
+            <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept="image/*"
+                onChange={handleFileChange}
+            />
         </div>
     );
 };
