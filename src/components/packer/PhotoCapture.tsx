@@ -27,7 +27,7 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
     const [error, setError] = useState<string | null>(null);
 
     const startCamera = async () => {
-        if (capturedImage) return; // Don't start camera if we have a captured image
+        if (capturedImage) return;
         
         setIsLoading(true);
         setError(null);
@@ -84,10 +84,22 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
 
         if (!ctx) return;
 
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        ctx.drawImage(video, 0, 0);
+        // Optimize canvas size for faster processing
+        const maxWidth = 1920;
+        const maxHeight = 1080;
+        let { videoWidth: width, videoHeight: height } = video;
+        
+        if (width > maxWidth || height > maxHeight) {
+            const ratio = Math.min(maxWidth / width, maxHeight / height);
+            width *= ratio;
+            height *= ratio;
+        }
 
+        canvas.width = width;
+        canvas.height = height;
+        ctx.drawImage(video, 0, 0, width, height);
+
+        // Use higher quality for better analysis results
         const imageData = canvas.toDataURL('image/webp', 0.8);
         setCapturedImage(imageData);
         stopCamera();
@@ -102,6 +114,11 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
         
         setIsUploading(true);
         try {
+            toast({
+                title: "Processing",
+                description: "Preparing image for upload...",
+            });
+
             const blob = await (await fetch(capturedImage)).blob();
             const fileName = `${orderId}/${uuidv4()}.webp`;
 
@@ -123,13 +140,35 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
 
             if (insertError) throw insertError;
 
-            toast({ title: "Success", description: "Photo uploaded and analysis started." });
-
-            // Invoke edge function for analysis
-            await supabase.functions.invoke('analyze-image', {
-                body: { packing_photo_id: photoRecord.id },
+            toast({ 
+                title: "Upload Successful", 
+                description: "Starting AI analysis... This will take 30-60 seconds." 
             });
 
+            // Invoke edge function for analysis with retry logic
+            const invokeAnalysis = async (retryCount = 0): Promise<void> => {
+                try {
+                    const { error } = await supabase.functions.invoke('analyze-image', {
+                        body: { packing_photo_id: photoRecord.id },
+                    });
+                    
+                    if (error) throw error;
+                } catch (error: any) {
+                    if (retryCount < 2) {
+                        console.log(`Analysis invocation failed, retrying... (${retryCount + 1}/3)`);
+                        setTimeout(() => invokeAnalysis(retryCount + 1), 2000 * (retryCount + 1));
+                    } else {
+                        console.error('Analysis invocation failed after 3 attempts:', error);
+                        toast({
+                            title: "Analysis Failed to Start",
+                            description: "You can retry the analysis manually.",
+                            variant: "destructive",
+                        });
+                    }
+                }
+            };
+
+            await invokeAnalysis();
             onPhotoUploaded(photoRecord);
         } catch (error: any) {
             toast({
@@ -183,7 +222,17 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
                             <RefreshCw className="mr-2 h-4 w-4" /> Retake
                         </Button>
                         <Button onClick={handleUpload} disabled={isUploading}>
-                            {isUploading ? "Uploading..." : <><Check className="mr-2 h-4 w-4" /> Confirm & Upload</>}
+                            {isUploading ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Uploading...
+                                </>
+                            ) : (
+                                <>
+                                    <Check className="mr-2 h-4 w-4" /> 
+                                    Confirm & Upload
+                                </>
+                            )}
                         </Button>
                     </>
                 ) : (
