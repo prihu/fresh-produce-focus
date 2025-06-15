@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { TablesInsert } from "@/integrations/supabase/types";
 
 const formSchema = z.object({
   order_number: z.string().min(1, { message: "Order number cannot be empty." }),
@@ -34,8 +33,8 @@ const CreateOrderForm = ({ onOrderCreated }: CreateOrderFormProps) => {
     },
   });
 
-  const { mutate: createOrder, isPending } = useMutation<void, Error, z.infer<typeof formSchema>>({
-    mutationFn: async (newOrder) => {
+  const { mutate: createOrder, isPending } = useMutation({
+    mutationFn: async (newOrder: z.infer<typeof formSchema>) => {
       const { error } = await supabase.from("orders").insert(newOrder);
       if (error) {
         throw new Error(error.message);
