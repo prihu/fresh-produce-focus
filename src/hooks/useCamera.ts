@@ -15,12 +15,18 @@ export const useCamera = (videoRef: RefObject<HTMLVideoElement>) => {
     }, [stream]);
 
     const startCamera = useCallback(async () => {
+        console.log("useCamera: startCamera called");
         stopCamera(); // Ensure any existing stream is stopped
         try {
+            console.log("Requesting user media...");
             const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            console.log("Got user media stream:", mediaStream);
             setStream(mediaStream);
             if (videoRef.current) {
+                console.log("Setting stream to video element");
                 videoRef.current.srcObject = mediaStream;
+            } else {
+                console.warn("videoRef.current is null when trying to set stream.");
             }
         } catch (err) {
             console.error("Error accessing camera:", err);

@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Tables } from '@/integrations/supabase/types';
@@ -27,10 +26,13 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
     const { uploadPhoto, isUploading } = usePhotoUpload({ orderId, productId, onPhotoUploaded });
 
     useEffect(() => {
+        console.log("PhotoCapture useEffect running. capturedImage:", !!capturedImage);
         if (!capturedImage) {
+            console.log("Calling startCamera()");
             startCamera();
         }
         return () => {
+            console.log("PhotoCapture cleanup. Calling stopCamera()");
             stopCamera();
         };
     }, [capturedImage, startCamera, stopCamera]);
