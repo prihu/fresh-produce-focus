@@ -225,6 +225,10 @@ export type Database = {
         Args: { order_num: string }
         Returns: boolean
       }
+      validate_order_number_secure: {
+        Args: { order_num: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "packer" | "admin"

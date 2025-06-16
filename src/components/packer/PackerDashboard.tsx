@@ -1,10 +1,10 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Box } from "lucide-react";
 import OrderCard from "./dashboard/OrderCard";
+import SecureCreateOrderForm from './SecureCreateOrderForm';
 
 const fetchOrders = async () => {
   // Fetch all orders, both pending and completed, for this packer
@@ -46,7 +46,11 @@ const PackerDashboard = () => {
   const completedOrders = orders?.filter(o => o.status === "packed") || [];
 
   return (
-    <div>
+    <div className="space-y-6">
+      <h1 className="text-3xl font-bold text-gray-900">Packer Dashboard</h1>
+      
+      <SecureCreateOrderForm />
+      
       {(!pendingOrders.length && !completedOrders.length) ? (
         <Alert className="bg-white border-gray-200">
             <Box className="h-4 w-4 text-gray-700"/>
