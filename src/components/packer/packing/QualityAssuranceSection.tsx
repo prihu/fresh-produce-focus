@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -35,7 +34,6 @@ const QualityAssuranceSection = ({
     onPhotoStatusUpdate 
 }: QualityAssuranceSectionProps) => {
     const { toast } = useToast();
-    const [isUploading, setIsUploading] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
 
     const handleDeletePhoto = async () => {
@@ -195,8 +193,6 @@ const QualityAssuranceSection = ({
                                         orderId={orderId}
                                         productId={product.id}
                                         onPhotoUploaded={onPhotoUploaded}
-                                        isUploading={isUploading}
-                                        onUploadingChange={setIsUploading}
                                     />
                                 </div>
                             </TabsContent>
