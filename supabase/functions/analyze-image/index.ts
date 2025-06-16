@@ -168,7 +168,7 @@ Be accurate but concise.`;
 
     const { itemName, freshness, quality, description } = parseAnalysis(analysisText);
 
-    // Update the database with results
+    // Update the database with results (removed analyzed_at since column doesn't exist)
     const { error: updateError } = await supabase
       .from('packing_photos')
       .update({
@@ -177,7 +177,6 @@ Be accurate but concise.`;
         freshness_score: freshness,
         quality_score: quality,
         description: description,
-        analyzed_at: new Date().toISOString(),
       })
       .eq('id', packing_photo_id);
 
@@ -219,7 +218,7 @@ Be accurate but concise.`;
 
     // Update status to failed if we have the ID
     try {
-      const requestBody = await req.json();
+      const requestBody = await req.json().catch(() => ({}));
       if (requestBody.packing_photo_id) {
         const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
         const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
