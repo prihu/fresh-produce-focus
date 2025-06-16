@@ -66,12 +66,20 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
         }
     };
 
+    // Cleanup function for captured image URLs
+    const cleanupCapturedImage = () => {
+        if (capturedImage && capturedImage.startsWith('blob:')) {
+            URL.revokeObjectURL(capturedImage);
+        }
+    };
+
     useEffect(() => {
         if (!capturedImage) {
             startCamera();
         }
         return () => {
             stopCamera();
+            cleanupCapturedImage();
         };
     }, [capturedImage]);
 
@@ -84,7 +92,10 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
 
         if (!ctx) return;
 
-        // Optimize canvas size for faster processing
+        // Clean up previous captured image
+        cleanupCapturedImage();
+
+        // Optimize canvas size
         const maxWidth = 1920;
         const maxHeight = 1080;
         let { videoWidth: width, videoHeight: height } = video;
@@ -99,13 +110,13 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
         canvas.height = height;
         ctx.drawImage(video, 0, 0, width, height);
 
-        // Use higher quality for better analysis results
         const imageData = canvas.toDataURL('image/webp', 0.8);
         setCapturedImage(imageData);
         stopCamera();
     };
 
     const handleRetake = () => {
+        cleanupCapturedImage();
         setCapturedImage(null);
     };
 
@@ -145,7 +156,7 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
                 description: "Starting AI analysis... This will take 30-60 seconds." 
             });
 
-            // Invoke edge function for analysis with retry logic
+            // Invoke analysis with retry logic
             const invokeAnalysis = async (retryCount = 0): Promise<void> => {
                 try {
                     const { error } = await supabase.functions.invoke('analyze-image', {

@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
@@ -5,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tables } from "@/integrations/supabase/types";
-import { Camera, CheckCircle2, Clock, AlertCircle, Star, ImageIcon } from "lucide-react";
-import { useState } from "react";
+import { Camera, CheckCircle2, Clock, AlertCircle, Star } from "lucide-react";
+import EnhancedImage from "@/components/ui/enhanced-image";
 
 type Order = Tables<'orders'>;
 type PackingPhoto = Tables<'packing_photos'>;
@@ -27,56 +28,10 @@ const fetchOrderPhotos = async (orderId: string): Promise<PackingPhoto[]> => {
 };
 
 const OrderCard = ({ order }: OrderCardProps) => {
-    const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
-    
     const { data: photos = [], isLoading } = useQuery({
         queryKey: ["orderPhotos", order.id],
         queryFn: () => fetchOrderPhotos(order.id),
     });
-
-    const handleImageError = (photoId: string, imageUrl: string) => {
-        console.error('Image failed to load for photo:', photoId, 'URL:', imageUrl);
-        setImageErrors(prev => new Set([...prev, photoId]));
-    };
-
-    const handleImageLoad = (photoId: string, imageUrl: string) => {
-        console.log('Image loaded successfully for photo:', photoId, 'URL:', imageUrl);
-        setImageErrors(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(photoId);
-            return newSet;
-        });
-    };
-
-    const getImageUrl = (photo: PackingPhoto) => {
-        try {
-            // Generate the public URL
-            const { data } = supabase.storage
-                .from('packing-photos')
-                .getPublicUrl(photo.storage_path);
-            
-            const url = data.publicUrl;
-            console.log('Generated image URL for photo', photo.id, ':', url);
-            console.log('Storage path:', photo.storage_path);
-            
-            // Test if the URL is accessible by trying to fetch it
-            fetch(url, { method: 'HEAD' })
-                .then(response => {
-                    console.log('Image accessibility test for', photo.id, '- Status:', response.status);
-                    if (!response.ok) {
-                        console.error('Image not accessible:', url, 'Status:', response.status);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error testing image accessibility:', error);
-                });
-            
-            return url;
-        } catch (error) {
-            console.error('Error generating image URL for photo', photo.id, ':', error);
-            return null;
-        }
-    };
 
     const getAnalysisStatusBadge = () => {
         if (!photos.length) {
@@ -147,6 +102,25 @@ const OrderCard = ({ order }: OrderCardProps) => {
         );
     };
 
+    if (isLoading) {
+        return (
+            <Card className="bg-white border-gray-200 shadow-sm">
+                <CardHeader className="bg-white pb-3">
+                    <div className="animate-pulse">
+                        <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                        <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                    </div>
+                </CardHeader>
+                <CardContent className="bg-white pb-3">
+                    <div className="animate-pulse space-y-2">
+                        <div className="h-3 bg-gray-200 rounded w-full"></div>
+                        <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    }
+
     return (
         <Card className="bg-white border-gray-200 shadow-sm hover:shadow-md transition-shadow">
             <CardHeader className="bg-white pb-3">
@@ -170,31 +144,19 @@ const OrderCard = ({ order }: OrderCardProps) => {
                                 <span>{photos.length} photo{photos.length > 1 ? 's' : ''} uploaded</span>
                             </div>
                             
-                            {/* Photo thumbnails with enhanced error handling */}
+                            {/* Photo thumbnails using enhanced image component */}
                             <div className="flex gap-2 overflow-x-auto">
-                                {photos.slice(0, 3).map((photo) => {
-                                    const imageUrl = getImageUrl(photo);
-                                    const hasError = imageErrors.has(photo.id);
-                                    
-                                    return (
-                                        <div key={photo.id} className="flex-shrink-0">
-                                            {!hasError && imageUrl ? (
-                                                <img
-                                                    src={imageUrl}
-                                                    alt="Packing photo"
-                                                    className="w-16 h-16 object-cover rounded border border-gray-200"
-                                                    onError={() => handleImageError(photo.id, imageUrl)}
-                                                    onLoad={() => handleImageLoad(photo.id, imageUrl)}
-                                                    crossOrigin="anonymous"
-                                                />
-                                            ) : (
-                                                <div className="w-16 h-16 bg-gray-100 rounded border border-gray-200 flex items-center justify-center">
-                                                    <ImageIcon className="h-6 w-6 text-gray-400" />
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
+                                {photos.slice(0, 3).map((photo) => (
+                                    <div key={photo.id} className="flex-shrink-0">
+                                        <EnhancedImage
+                                            storagePath={photo.storage_path}
+                                            alt="Packing photo"
+                                            className="w-16 h-16 object-cover rounded border border-gray-200"
+                                            fallbackClassName="w-16 h-16"
+                                            onError={(error) => console.error('OrderCard image error:', error)}
+                                        />
+                                    </div>
+                                ))}
                                 {photos.length > 3 && (
                                     <div className="flex-shrink-0 w-16 h-16 bg-gray-100 rounded border border-gray-200 flex items-center justify-center">
                                         <span className="text-xs text-gray-600">+{photos.length - 3}</span>

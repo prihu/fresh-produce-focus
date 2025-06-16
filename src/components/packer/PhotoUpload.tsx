@@ -18,44 +18,64 @@ interface PhotoUploadProps {
 }
 
 const MAX_FILE_SIZE_MB = 15;
-const TARGET_SIZE_MB = 2; // Compress to 2MB for faster processing
+const TARGET_SIZE_MB = 2;
 
 const PhotoUpload = ({ orderId, productId, onPhotoUploaded, isUploading = false, onUploadingChange }: PhotoUploadProps) => {
     const { toast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const compressImage = (file: File, maxSizeMB: number, quality: number = 0.7): Promise<Blob> => {
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
             const img = new Image();
             
-            img.onload = () => {
-                // Calculate new dimensions to reduce file size
-                const maxWidth = 1920;
-                const maxHeight = 1080;
-                let { width, height } = img;
-                
-                if (width > maxWidth || height > maxHeight) {
-                    const ratio = Math.min(maxWidth / width, maxHeight / height);
-                    width *= ratio;
-                    height *= ratio;
+            // Cleanup function to prevent memory leaks
+            const cleanup = () => {
+                if (img.src && img.src.startsWith('blob:')) {
+                    URL.revokeObjectURL(img.src);
                 }
-                
-                canvas.width = width;
-                canvas.height = height;
-                ctx?.drawImage(img, 0, 0, width, height);
-                
-                canvas.toBlob((blob) => {
-                    if (blob && blob.size > maxSizeMB * 1024 * 1024 && quality > 0.1) {
-                        // Recursively reduce quality if still too large
-                        canvas.toBlob((newBlob) => {
-                            resolve(newBlob || blob);
-                        }, 'image/webp', quality - 0.1);
-                    } else {
-                        resolve(blob || new Blob());
+                canvas.width = 0;
+                canvas.height = 0;
+            };
+            
+            img.onload = () => {
+                try {
+                    // Calculate new dimensions
+                    const maxWidth = 1920;
+                    const maxHeight = 1080;
+                    let { width, height } = img;
+                    
+                    if (width > maxWidth || height > maxHeight) {
+                        const ratio = Math.min(maxWidth / width, maxHeight / height);
+                        width *= ratio;
+                        height *= ratio;
                     }
-                }, 'image/webp', quality);
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    ctx?.drawImage(img, 0, 0, width, height);
+                    
+                    canvas.toBlob((blob) => {
+                        cleanup();
+                        if (blob && blob.size > maxSizeMB * 1024 * 1024 && quality > 0.1) {
+                            // Recursively reduce quality if still too large
+                            canvas.toBlob((newBlob) => {
+                                resolve(newBlob || blob);
+                            }, 'image/webp', quality - 0.1);
+                        } else {
+                            resolve(blob || new Blob());
+                        }
+                    }, 'image/webp', quality);
+                } catch (error) {
+                    cleanup();
+                    reject(error);
+                }
+            };
+
+            img.onerror = () => {
+                cleanup();
+                reject(new Error('Failed to load image'));
             };
             
             img.src = URL.createObjectURL(file);
@@ -98,7 +118,6 @@ const PhotoUpload = ({ orderId, productId, onPhotoUploaded, isUploading = false,
                 description: "Optimizing image for analysis...",
             });
 
-            // Compress the image for faster processing
             const compressedBlob = await compressImage(file, TARGET_SIZE_MB);
             const fileName = `${orderId}/${uuidv4()}.webp`;
 
@@ -130,7 +149,7 @@ const PhotoUpload = ({ orderId, productId, onPhotoUploaded, isUploading = false,
                 description: "Starting AI analysis... This will take 30-60 seconds." 
             });
 
-            // Invoke edge function for analysis with retry logic
+            // Invoke analysis with retry logic
             const invokeAnalysis = async (retryCount = 0): Promise<void> => {
                 try {
                     const { error } = await supabase.functions.invoke('analyze-image', {
