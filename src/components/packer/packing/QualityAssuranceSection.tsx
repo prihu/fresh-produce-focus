@@ -9,7 +9,7 @@ import PhotoAnalysis from "./PhotoAnalysis";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { Trash2, Upload, Camera, CheckCircle2 } from "lucide-react";
+import { Trash2, Upload, Camera, CheckCircle2, ImageIcon } from "lucide-react";
 
 type Product = Tables<'products'>;
 type PackingPhoto = Tables<'packing_photos'>;
@@ -36,6 +36,7 @@ const QualityAssuranceSection = ({
     const { toast } = useToast();
     const [isUploading, setIsUploading] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [imageError, setImageError] = useState(false);
 
     const handleDeletePhoto = async () => {
         if (!packingPhoto) return;
@@ -105,6 +106,33 @@ const QualityAssuranceSection = ({
         }
     };
 
+    // Generate the image URL with error handling
+    const getImageUrl = () => {
+        if (!packingPhoto) return null;
+        
+        try {
+            const url = supabase.storage
+                .from('packing-photos')
+                .getPublicUrl(packingPhoto.storage_path).data.publicUrl;
+            
+            console.log('Generated image URL:', url);
+            return url;
+        } catch (error) {
+            console.error('Error generating image URL:', error);
+            return null;
+        }
+    };
+
+    const handleImageError = () => {
+        console.error('Failed to load image:', packingPhoto?.storage_path);
+        setImageError(true);
+    };
+
+    const handleImageLoad = () => {
+        console.log('Image loaded successfully:', packingPhoto?.storage_path);
+        setImageError(false);
+    };
+
     return (
         <Card className="bg-white border-purple-200 shadow-sm">
             <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50">
@@ -142,14 +170,26 @@ const QualityAssuranceSection = ({
             <CardContent className="p-6 bg-white">
                 {packingPhoto ? (
                     <div className="space-y-4">
-                        {/* Display the uploaded image */}
+                        {/* Display the uploaded image with error handling */}
                         <div className="flex justify-center">
                             <div className="relative max-w-md w-full">
-                                <img
-                                    src={`${supabase.storage.from('packing-photos').getPublicUrl(packingPhoto.storage_path).data.publicUrl}`}
-                                    alt="Uploaded produce"
-                                    className="w-full h-auto rounded-lg border border-purple-200 shadow-sm"
-                                />
+                                {!imageError && getImageUrl() ? (
+                                    <img
+                                        src={getImageUrl()!}
+                                        alt="Uploaded produce"
+                                        className="w-full h-auto rounded-lg border border-purple-200 shadow-sm"
+                                        onError={handleImageError}
+                                        onLoad={handleImageLoad}
+                                    />
+                                ) : (
+                                    <div className="w-full h-48 bg-gray-100 rounded-lg border border-purple-200 flex items-center justify-center">
+                                        <div className="text-center text-gray-500">
+                                            <ImageIcon className="h-12 w-12 mx-auto mb-2" />
+                                            <p className="text-sm">Image loading failed</p>
+                                            <p className="text-xs">Please try re-uploading</p>
+                                        </div>
+                                    </div>
+                                )}
                                 <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full text-xs font-medium text-purple-700">
                                     Quality Check Photo
                                 </div>

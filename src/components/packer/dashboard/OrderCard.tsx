@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tables } from "@/integrations/supabase/types";
-import { Camera, CheckCircle2, Clock, AlertCircle, Star } from "lucide-react";
+import { Camera, CheckCircle2, Clock, AlertCircle, Star, ImageIcon } from "lucide-react";
+import { useState } from "react";
 
 type Order = Tables<'orders'>;
 type PackingPhoto = Tables<'packing_photos'>;
@@ -27,10 +28,39 @@ const fetchOrderPhotos = async (orderId: string): Promise<PackingPhoto[]> => {
 };
 
 const OrderCard = ({ order }: OrderCardProps) => {
+    const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
+    
     const { data: photos = [], isLoading } = useQuery({
         queryKey: ["orderPhotos", order.id],
         queryFn: () => fetchOrderPhotos(order.id),
     });
+
+    const handleImageError = (photoId: string) => {
+        console.error('Failed to load image for photo:', photoId);
+        setImageErrors(prev => new Set([...prev, photoId]));
+    };
+
+    const handleImageLoad = (photoId: string) => {
+        console.log('Image loaded successfully for photo:', photoId);
+        setImageErrors(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(photoId);
+            return newSet;
+        });
+    };
+
+    const getImageUrl = (photo: PackingPhoto) => {
+        try {
+            const url = supabase.storage
+                .from('packing-photos')
+                .getPublicUrl(photo.storage_path).data.publicUrl;
+            console.log('Generated thumbnail URL for photo', photo.id, ':', url);
+            return url;
+        } catch (error) {
+            console.error('Error generating thumbnail URL:', error);
+            return null;
+        }
+    };
 
     const getAnalysisStatusBadge = () => {
         if (!photos.length) {
@@ -124,17 +154,30 @@ const OrderCard = ({ order }: OrderCardProps) => {
                                 <span>{photos.length} photo{photos.length > 1 ? 's' : ''} uploaded</span>
                             </div>
                             
-                            {/* Photo thumbnails */}
+                            {/* Photo thumbnails with error handling */}
                             <div className="flex gap-2 overflow-x-auto">
-                                {photos.slice(0, 3).map((photo) => (
-                                    <div key={photo.id} className="flex-shrink-0">
-                                        <img
-                                            src={`${supabase.storage.from('packing-photos').getPublicUrl(photo.storage_path).data.publicUrl}`}
-                                            alt="Packing photo"
-                                            className="w-16 h-16 object-cover rounded border border-gray-200"
-                                        />
-                                    </div>
-                                ))}
+                                {photos.slice(0, 3).map((photo) => {
+                                    const imageUrl = getImageUrl(photo);
+                                    const hasError = imageErrors.has(photo.id);
+                                    
+                                    return (
+                                        <div key={photo.id} className="flex-shrink-0">
+                                            {!hasError && imageUrl ? (
+                                                <img
+                                                    src={imageUrl}
+                                                    alt="Packing photo"
+                                                    className="w-16 h-16 object-cover rounded border border-gray-200"
+                                                    onError={() => handleImageError(photo.id)}
+                                                    onLoad={() => handleImageLoad(photo.id)}
+                                                />
+                                            ) : (
+                                                <div className="w-16 h-16 bg-gray-100 rounded border border-gray-200 flex items-center justify-center">
+                                                    <ImageIcon className="h-6 w-6 text-gray-400" />
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                                 {photos.length > 3 && (
                                     <div className="flex-shrink-0 w-16 h-16 bg-gray-100 rounded border border-gray-200 flex items-center justify-center">
                                         <span className="text-xs text-gray-600">+{photos.length - 3}</span>
