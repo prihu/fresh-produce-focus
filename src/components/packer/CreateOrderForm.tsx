@@ -1,3 +1,4 @@
+
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -15,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Database } from "@/integrations/supabase/types";
-import { useAuth } from "@/contexts/AuthContext";
+import { useSecureAuth } from "@/contexts/SecureAuthContext";
 
 const formSchema = z.object({
   order_number: z.string().min(1, { message: "Order number cannot be empty." }),
@@ -27,7 +28,7 @@ type CreateOrderFormProps = {
 
 const CreateOrderForm = ({ onOrderCreated }: CreateOrderFormProps) => {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user } = useSecureAuth();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -69,7 +70,7 @@ const CreateOrderForm = ({ onOrderCreated }: CreateOrderFormProps) => {
     createOrder({
       order_number: values.order_number,
       packer_id: user.id,
-      manually_created: true, // <-- Always set this for manual orders!
+      manually_created: true,
     });
   }
 

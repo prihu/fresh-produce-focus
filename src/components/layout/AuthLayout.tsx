@@ -1,5 +1,5 @@
 
-import { useAuth } from '@/contexts/AuthContext';
+import { useSecureAuth } from '@/contexts/SecureAuthContext';
 import { Navigate, Outlet } from 'react-router-dom';
 import { UserNav } from './UserNav';
 import { ArrowLeft } from 'lucide-react';
@@ -7,10 +7,10 @@ import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 
 export function AuthLayout() {
-  const { session, loading } = useAuth();
+  const { session, isLoading } = useSecureAuth();
   const location = useLocation();
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-white">
         <p className="text-gray-900">Loading...</p>

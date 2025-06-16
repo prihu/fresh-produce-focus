@@ -4,7 +4,15 @@ import { useSecureAuth } from '@/contexts/SecureAuthContext';
 import { Navigate } from 'react-router-dom';
 
 const Index = () => {
-  const { user, userRole } = useSecureAuth();
+  const { user, userRole, isLoading } = useSecureAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-fresh-500"></div>
+      </div>
+    );
+  }
 
   // Redirect users based on their role
   if (user && userRole === 'packer') {

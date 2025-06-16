@@ -9,17 +9,20 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { useSecureAuth } from "@/contexts/SecureAuthContext";
 import { useNavigate } from "react-router-dom";
 
 export function UserNav() {
-  const { user } = useAuth();
+  const { user, signOut } = useSecureAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate('/auth');
+    try {
+      await signOut();
+      navigate('/auth');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
   };
   
   const getInitials = (email: string) => {
