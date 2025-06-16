@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -54,7 +55,7 @@
     --card-foreground: 248 250 252;
 
     --popover: 15 23 42;
-    --popover-foreground: 248 250 252;
+    --popover-foreground: 15 23 42;
 
     --primary: 160 101 255;
     --primary-foreground: 255 255 255;

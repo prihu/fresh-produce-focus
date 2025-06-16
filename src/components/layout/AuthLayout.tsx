@@ -12,7 +12,7 @@ export function AuthLayout() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-screen bg-background">
         <p>Loading...</p>
       </div>
     );
@@ -26,7 +26,7 @@ export function AuthLayout() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b">
+      <header className="border-b bg-background">
         <div className="container mx-auto flex h-16 items-center px-4">
           <div className="mr-4 hidden md:flex">
             <Link to="/" className="mr-6 flex items-center space-x-2">
@@ -38,7 +38,7 @@ export function AuthLayout() {
           </div>
         </div>
       </header>
-      <main className="container mx-auto p-4">
+      <main className="container mx-auto p-4 bg-background">
        {showBackButton && (
          <Button asChild variant="outline" size="sm" className="mb-4">
             <Link to="/packer"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard</Link>
