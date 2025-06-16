@@ -45,23 +45,23 @@ const FinalizePackingSection = ({ order, packingPhoto }: FinalizePackingSectionP
     let helperMessage = null;
     if (!isPacked) {
         if (!isAnalysisComplete) {
-            helperMessage = <p className="text-sm text-muted-foreground mt-2">You must capture a photo and wait for analysis to complete before packing.</p>;
+            helperMessage = <p className="text-sm text-gray-600 mt-2">You must capture a photo and wait for analysis to complete before packing.</p>;
         } else if (!isQualityAcceptable) {
-            helperMessage = <p className="text-sm text-destructive font-medium mt-2">Quality score of {packingPhoto.quality_score}/10 is below the minimum of {MIN_QUALITY_SCORE}. Item cannot be packed. A new photo is required.</p>;
+            helperMessage = <p className="text-sm text-red-600 font-medium mt-2">Quality score of {packingPhoto.quality_score}/10 is below the minimum of {MIN_QUALITY_SCORE}. Item cannot be packed. A new photo is required.</p>;
         }
     }
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>2. Finalize Packing</CardTitle>
+        <Card className="bg-white border-gray-200 shadow-sm">
+            <CardHeader className="bg-white">
+                <CardTitle className="text-gray-900">2. Finalize Packing</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="bg-white">
                 {isPacked ? (
-                    <Alert>
-                        <CheckCircle className="h-4 w-4" />
-                        <AlertTitle>Completed!</AlertTitle>
-                        <AlertDescription>This order has been packed.</AlertDescription>
+                    <Alert className="bg-white border-green-200">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <AlertTitle className="text-green-800">Completed!</AlertTitle>
+                        <AlertDescription className="text-green-700">This order has been packed.</AlertDescription>
                     </Alert>
                 ) : (
                     <Button onClick={() => markAsPacked()} disabled={!canPack || isPacking}>

@@ -11,13 +11,13 @@ interface OrderDetailsCardProps {
 }
 
 const OrderDetailsCard = ({ order, product }: OrderDetailsCardProps) => (
-    <Card>
-        <CardHeader>
-            <CardTitle>Packing: Order #{order.order_number}</CardTitle>
+    <Card className="bg-white border-gray-200 shadow-sm">
+        <CardHeader className="bg-white">
+            <CardTitle className="text-gray-900">Packing: Order #{order.order_number}</CardTitle>
         </CardHeader>
-        <CardContent>
-            <p><strong>Product:</strong> {product.name}</p>
-            <p><strong>Price:</strong> ${product.price}</p>
+        <CardContent className="bg-white">
+            <p className="text-gray-700"><strong>Product:</strong> {product.name}</p>
+            <p className="text-gray-700"><strong>Price:</strong> ${product.price}</p>
         </CardContent>
     </Card>
 );

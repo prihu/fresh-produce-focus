@@ -106,7 +106,7 @@ const QualityAssuranceSection = ({
     };
 
     return (
-        <Card className="border-purple-200 shadow-sm">
+        <Card className="bg-white border-purple-200 shadow-sm">
             <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -139,7 +139,7 @@ const QualityAssuranceSection = ({
                 </div>
             </CardHeader>
 
-            <CardContent className="p-6">
+            <CardContent className="p-6 bg-white">
                 {packingPhoto ? (
                     <div className="space-y-4">
                         {/* Display the uploaded image */}
