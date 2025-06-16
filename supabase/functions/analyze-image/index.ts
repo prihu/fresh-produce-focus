@@ -35,7 +35,6 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get the packing photo record
     const { data: packingPhoto, error: fetchError } = await supabase
       .from('packing_photos')
       .select('*')
@@ -46,13 +45,11 @@ serve(async (req) => {
       throw new Error('Packing photo not found');
     }
 
-    // Update status to pending
     await supabase
       .from('packing_photos')
       .update({ ai_analysis_status: 'pending' })
       .eq('id', packing_photo_id);
 
-    // Get the signed URL for the image
     const { data: signedUrlData, error: urlError } = await supabase.storage
       .from('packing-photos')
       .createSignedUrl(packingPhoto.storage_path, 3600);
@@ -61,21 +58,29 @@ serve(async (req) => {
       throw new Error('Could not generate signed URL for image');
     }
 
-    // Choose model based on fast_mode
-    const model = fast_mode ? 'gpt-4o-mini' : 'gpt-4o-mini'; // Always use mini for faster processing
+    const model = 'gpt-4o-mini';
 
-    // Optimized prompt for faster processing
-    const systemPrompt = fast_mode 
-      ? `Analyze this produce image quickly. Rate freshness (1-10) and quality (1-10). Identify the item. Give a brief assessment in 1-2 sentences.`
-      : `You are a produce quality expert. Analyze this image of fresh produce and provide:
-1. Item identification
-2. Freshness score (1-10, where 10 is perfectly fresh)
-3. Quality score (1-10, where 10 is perfect quality)
-4. Brief description of condition
+    // Enhanced prompt for better produce detection and quality assessment
+    const systemPrompt = `You are a produce quality expert. Analyze this image and provide:
 
-Be accurate but concise.`;
+1. PRODUCE IDENTIFICATION: First determine if this is actually fresh produce/fruits/vegetables
+2. ITEM NAME: Specific produce item (e.g., "Apple", "Banana", "Lettuce")
+3. FRESHNESS SCORE: 1-10 (10 = perfectly fresh, no wilting/bruising)
+4. QUALITY SCORE: 1-10 (10 = perfect quality, no defects)
+5. DESCRIPTION: Brief assessment of condition
 
-    // Call OpenAI Vision API with optimized settings
+CRITICAL RULES:
+- If NOT produce/food: Item name should be "Not Produce" and scores should be 0
+- If unclear/blurry: Item name should be "Unidentified" and scores should be 0
+- Minimum acceptable scores for packing: 6/10 for both freshness and quality
+- Be strict with scoring - food safety is critical
+
+Format your response exactly like this:
+Item: [Specific produce name or "Not Produce" or "Unidentified"]
+Freshness: [1-10]
+Quality: [1-10]
+Description: [Brief assessment]`;
+
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -94,20 +99,20 @@ Be accurate but concise.`;
             content: [
               {
                 type: 'text',
-                text: 'Please analyze this produce for freshness and quality.'
+                text: 'Please analyze this produce image for freshness and quality according to the guidelines.'
               },
               {
                 type: 'image_url',
                 image_url: {
                   url: signedUrlData.signedUrl,
-                  detail: fast_mode ? 'low' : 'high' // Use low detail for faster processing
+                  detail: fast_mode ? 'low' : 'high'
                 }
               }
             ]
           }
         ],
-        max_tokens: fast_mode ? 200 : 400,
-        temperature: 0.1, // Lower temperature for more consistent results
+        max_tokens: fast_mode ? 300 : 500,
+        temperature: 0.1,
       }),
     });
 
@@ -120,47 +125,45 @@ Be accurate but concise.`;
     const analysisResult = await openAIResponse.json();
     const analysisText = analysisResult.choices[0].message.content;
 
-    // Enhanced parsing logic
+    // Enhanced parsing with stricter validation
     const parseAnalysis = (text: string) => {
-      // Default values
-      let itemName = 'Produce Item';
-      let freshness = 5;
-      let quality = 5;
+      let itemName = 'Unidentified';
+      let freshness = 0;
+      let quality = 0;
       let description = text;
 
       // Extract item name
-      const itemMatch = text.match(/(?:item|product|this is|appears to be|looks like)\s*:?\s*([^\n\.]+)/i);
+      const itemMatch = text.match(/Item:\s*([^\n]+)/i);
       if (itemMatch) {
         itemName = itemMatch[1].trim();
       }
 
-      // Extract scores with multiple patterns
-      const freshnessPatterns = [
-        /freshness\s*:?\s*(\d+)(?:\/10)?/i,
-        /fresh(?:ness)?\s*score\s*:?\s*(\d+)/i,
-        /(\d+)\/10\s*fresh/i
-      ];
-
-      const qualityPatterns = [
-        /quality\s*:?\s*(\d+)(?:\/10)?/i,
-        /quality\s*score\s*:?\s*(\d+)/i,
-        /(\d+)\/10\s*quality/i
-      ];
-
-      for (const pattern of freshnessPatterns) {
-        const match = text.match(pattern);
-        if (match) {
-          freshness = Math.min(10, Math.max(1, parseInt(match[1])));
-          break;
-        }
+      // Extract freshness score
+      const freshnessMatch = text.match(/Freshness:\s*(\d+)/i);
+      if (freshnessMatch) {
+        freshness = Math.min(10, Math.max(0, parseInt(freshnessMatch[1])));
       }
 
-      for (const pattern of qualityPatterns) {
-        const match = text.match(pattern);
-        if (match) {
-          quality = Math.min(10, Math.max(1, parseInt(match[1])));
-          break;
-        }
+      // Extract quality score
+      const qualityMatch = text.match(/Quality:\s*(\d+)/i);
+      if (qualityMatch) {
+        quality = Math.min(10, Math.max(0, parseInt(qualityMatch[1])));
+      }
+
+      // Extract description
+      const descMatch = text.match(/Description:\s*([^\n]+)/i);
+      if (descMatch) {
+        description = descMatch[1].trim();
+      }
+
+      // Validate produce detection
+      const isNonProduce = itemName.toLowerCase().includes('not produce') || 
+                          itemName.toLowerCase().includes('unidentified') ||
+                          itemName.toLowerCase().includes('unclear');
+
+      if (isNonProduce) {
+        freshness = 0;
+        quality = 0;
       }
 
       return { itemName, freshness, quality, description };
@@ -168,7 +171,6 @@ Be accurate but concise.`;
 
     const { itemName, freshness, quality, description } = parseAnalysis(analysisText);
 
-    // Update the database with results (removed analyzed_at since column doesn't exist)
     const { error: updateError } = await supabase
       .from('packing_photos')
       .update({
@@ -216,7 +218,6 @@ Be accurate but concise.`;
   } catch (error: any) {
     console.error('Analysis function error:', error);
 
-    // Update status to failed if we have the ID
     try {
       const requestBody = await req.json().catch(() => ({}));
       if (requestBody.packing_photo_id) {

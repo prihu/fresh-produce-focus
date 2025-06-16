@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -7,12 +8,11 @@ import OrderCard from "./dashboard/OrderCard";
 import SecureCreateOrderForm from './SecureCreateOrderForm';
 
 const fetchOrders = async () => {
-  // Fetch all orders, both pending and completed, for this packer
   const { data, error } = await supabase
     .from("orders")
     .select("*")
-    .order("status", { ascending: true }) // "pending_packing" before "packed"
-    .order("created_at", { ascending: false }); // Most recent first
+    .order("status", { ascending: true })
+    .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   return data;
 };
@@ -47,8 +47,6 @@ const PackerDashboard = () => {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-gray-900">Packer Dashboard</h1>
-      
       <SecureCreateOrderForm />
       
       {(!pendingOrders.length && !completedOrders.length) ? (

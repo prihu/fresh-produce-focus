@@ -1,4 +1,3 @@
-
 import { Tables } from "@/integrations/supabase/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -6,7 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, AlertTriangle, CheckCircle, Clock, Zap } from "lucide-react";
+import { Loader2, AlertTriangle, CheckCircle, Clock, Zap, Eye, Leaf } from "lucide-react";
 
 type PackingPhoto = Tables<'packing_photos'>;
 
@@ -21,7 +20,6 @@ const PhotoAnalysis = ({ packingPhoto, onStatusUpdate }: PhotoAnalysisProps) => 
     const [progress, setProgress] = useState(0);
     const [estimatedTime, setEstimatedTime] = useState(45);
     const [isOvertime, setIsOvertime] = useState(false);
-    const [lastUpdated, setLastUpdated] = useState(Date.now());
 
     // Enhanced progress simulation for pending analysis
     useEffect(() => {
@@ -135,6 +133,21 @@ const PhotoAnalysis = ({ packingPhoto, onStatusUpdate }: PhotoAnalysisProps) => 
         }
     };
 
+    const getQualityIcon = (score: number) => {
+        if (score >= 6) return <CheckCircle className="h-4 w-4 text-green-600" />;
+        return <AlertTriangle className="h-4 w-4 text-red-600" />;
+    };
+
+    const getQualityColor = (score: number) => {
+        if (score >= 6) return 'text-green-600';
+        return 'text-red-600';
+    };
+
+    const isProduceDetected = packingPhoto.item_name && 
+        !packingPhoto.item_name.toLowerCase().includes('not') &&
+        !packingPhoto.item_name.toLowerCase().includes('unidentified') &&
+        !packingPhoto.item_name.toLowerCase().includes('unclear');
+
     const getStatusIcon = () => {
         switch (packingPhoto.ai_analysis_status) {
             case 'pending':
@@ -214,7 +227,7 @@ const PhotoAnalysis = ({ packingPhoto, onStatusUpdate }: PhotoAnalysisProps) => 
                                 </>
                             ) : (
                                 <>
-                                    <p>Our AI is examining freshness, quality, and visual defects.</p>
+                                    <p>Our AI is examining freshness, quality, and produce identification.</p>
                                     <p className="text-purple-600">Using advanced image recognition for accurate results.</p>
                                 </>
                             )}
@@ -247,21 +260,84 @@ const PhotoAnalysis = ({ packingPhoto, onStatusUpdate }: PhotoAnalysisProps) => 
                 )}
 
                 {packingPhoto.ai_analysis_status === 'completed' && (
-                    <div className="mt-3 space-y-2 bg-white p-3 rounded-lg border border-green-100">
-                        <p className="text-sm"><strong className="text-gray-700">Item:</strong> <span className="text-green-700">{packingPhoto.item_name || 'Produce Item'}</span></p>
-                        <div className="flex gap-4 text-sm">
-                            <p><strong className="text-gray-700">Freshness:</strong> 
-                                <span className={`ml-1 font-bold ${packingPhoto.freshness_score >= 7 ? 'text-green-600' : packingPhoto.freshness_score >= 5 ? 'text-yellow-600' : 'text-red-600'}`}>
-                                    {packingPhoto.freshness_score}/10
-                                </span>
-                            </p>
-                            <p><strong className="text-gray-700">Quality:</strong> 
-                                <span className={`ml-1 font-bold ${packingPhoto.quality_score >= 7 ? 'text-green-600' : packingPhoto.quality_score >= 5 ? 'text-yellow-600' : 'text-red-600'}`}>
-                                    {packingPhoto.quality_score}/10
-                                </span>
+                    <div className="mt-3 space-y-3">
+                        {/* Produce Detection Status */}
+                        <div className="p-3 rounded-lg border bg-white">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Eye className="h-4 w-4 text-blue-600" />
+                                <span className="text-sm font-medium text-gray-700">Produce Detection:</span>
+                                {isProduceDetected ? (
+                                    <Badge variant="default" className="bg-green-100 text-green-800">
+                                        <CheckCircle className="h-3 w-3 mr-1" />
+                                        Verified
+                                    </Badge>
+                                ) : (
+                                    <Badge variant="destructive">
+                                        <AlertTriangle className="h-3 w-3 mr-1" />
+                                        Not Detected
+                                    </Badge>
+                                )}
+                            </div>
+                            <p className="text-sm text-gray-600">
+                                <strong>Item:</strong> {packingPhoto.item_name || 'Unidentified'}
                             </p>
                         </div>
-                        <p className="text-sm"><strong className="text-gray-700">Analysis:</strong> <span className="text-gray-600">{packingPhoto.description}</span></p>
+
+                        {/* Quality Scores */}
+                        <div className="p-3 rounded-lg border bg-white">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Leaf className="h-4 w-4 text-green-600" />
+                                <span className="text-sm font-medium text-gray-700">Quality Assessment:</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="flex items-center gap-2">
+                                    {getQualityIcon(packingPhoto.freshness_score || 0)}
+                                    <span className="text-sm">
+                                        <strong>Freshness:</strong>
+                                        <span className={`ml-1 font-bold ${getQualityColor(packingPhoto.freshness_score || 0)}`}>
+                                            {packingPhoto.freshness_score}/10
+                                        </span>
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    {getQualityIcon(packingPhoto.quality_score || 0)}
+                                    <span className="text-sm">
+                                        <strong>Quality:</strong>
+                                        <span className={`ml-1 font-bold ${getQualityColor(packingPhoto.quality_score || 0)}`}>
+                                            {packingPhoto.quality_score}/10
+                                        </span>
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="mt-2 text-xs text-gray-500">
+                                ✓ Minimum required: 6/10 for both scores
+                            </div>
+                        </div>
+
+                        {/* Analysis Description */}
+                        {packingPhoto.description && (
+                            <div className="p-3 rounded-lg border bg-gray-50">
+                                <p className="text-sm">
+                                    <strong className="text-gray-700">Analysis:</strong>
+                                    <span className="text-gray-600 ml-1">{packingPhoto.description}</span>
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Validation Summary */}
+                        {(!isProduceDetected || (packingPhoto.quality_score || 0) < 6 || (packingPhoto.freshness_score || 0) < 6) && (
+                            <div className="p-3 rounded-lg border border-red-200 bg-red-50">
+                                <div className="flex items-start gap-2">
+                                    <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5" />
+                                    <div>
+                                        <p className="text-sm font-medium text-red-700">Validation Failed</p>
+                                        <p className="text-xs text-red-600 mt-1">
+                                            This item cannot be packed due to quality standards. Please retake the photo.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 
