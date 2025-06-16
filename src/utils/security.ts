@@ -52,10 +52,27 @@ export class SecurityUtils {
   /**
    * Validates order number format
    */
-  static validateOrderNumber(orderNumber: string): boolean {
+  static validateOrderNumber(orderNumber: string): { isValid: boolean; error?: string } {
     // Order numbers should be 3-50 characters, alphanumeric with dashes/underscores
     const pattern = /^[A-Za-z0-9_-]{3,50}$/;
-    return pattern.test(orderNumber);
+    
+    if (!orderNumber || orderNumber.trim().length === 0) {
+      return { isValid: false, error: 'Order number is required' };
+    }
+    
+    if (orderNumber.length < 3) {
+      return { isValid: false, error: 'Order number must be at least 3 characters' };
+    }
+    
+    if (orderNumber.length > 50) {
+      return { isValid: false, error: 'Order number must be 50 characters or less' };
+    }
+    
+    if (!pattern.test(orderNumber)) {
+      return { isValid: false, error: 'Order number can only contain letters, numbers, hyphens, and underscores' };
+    }
+    
+    return { isValid: true };
   }
 
   /**
