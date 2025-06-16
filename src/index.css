@@ -7,7 +7,7 @@
 
 @layer base {
   :root {
-    /* Freshness Checker Authentic Brand Colors */
+    /* Freshness Checker Brand Colors - Pure white background */
     --background: 255 255 255; /* Pure white */
     --foreground: 15 23 42; /* Deep slate for readability */
 
@@ -17,7 +17,7 @@
     --popover: 255 255 255;
     --popover-foreground: 15 23 42;
 
-    /* Freshness Checker Primary - Authentic Purple */
+    /* Freshness Checker Primary - Purple */
     --primary: 160 101 255; /* Fresh purple #a065ff */
     --primary-foreground: 255 255 255;
 
@@ -39,12 +39,6 @@
     --ring: 160 101 255; /* Purple focus ring */
 
     --radius: 16px; /* Freshness Checker's rounded corners */
-
-    /* Freshness Checker Brand Gradients */
-    --gradient-primary: linear-gradient(135deg, rgb(160, 101, 255) 0%, rgb(139, 61, 255) 100%);
-    --gradient-secondary: linear-gradient(135deg, rgb(34, 197, 94) 0%, rgb(22, 163, 74) 100%);
-    --gradient-fresh: linear-gradient(135deg, rgb(160, 101, 255) 0%, rgb(118, 40, 240) 100%);
-    --gradient-background: linear-gradient(135deg, rgb(250, 247, 255) 0%, rgb(242, 235, 255) 50%, rgb(232, 220, 255) 100%);
   }
 
   .dark {
@@ -91,23 +85,15 @@
 /* Freshness Checker Brand Utilities */
 @layer utilities {
   .bg-gradient-primary {
-    background: var(--gradient-primary);
-  }
-  
-  .bg-gradient-secondary {
-    background: var(--gradient-secondary);
+    background: linear-gradient(135deg, rgb(160, 101, 255) 0%, rgb(139, 61, 255) 100%);
   }
   
   .bg-gradient-fresh {
-    background: var(--gradient-fresh);
-  }
-
-  .bg-gradient-background {
-    background: var(--gradient-background);
+    background: linear-gradient(135deg, rgb(160, 101, 255) 0%, rgb(118, 40, 240) 100%);
   }
   
   .text-gradient {
-    background: var(--gradient-primary);
+    background: linear-gradient(135deg, rgb(160, 101, 255) 0%, rgb(139, 61, 255) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -120,17 +106,10 @@
   .shadow-fresh-lg {
     box-shadow: 0 20px 25px -5px rgba(160, 101, 255, 0.08), 0 10px 10px -5px rgba(160, 101, 255, 0.04);
   }
-  
-  .border-gradient {
-    border: 1px solid transparent;
-    background: linear-gradient(white, white) padding-box,
-                var(--gradient-primary) border-box;
-  }
 }
 
 /* Freshness Checker Typography System */
 @layer utilities {
-  /* Heading Typography - Purple-tinted grays */
   .text-heading-primary {
     @apply text-slate-900 font-bold tracking-tight;
   }
@@ -143,7 +122,6 @@
     @apply text-slate-700 font-medium;
   }
   
-  /* Body Typography */
   .text-body-primary {
     @apply text-slate-700 font-normal;
   }
@@ -156,7 +134,6 @@
     @apply text-slate-500 font-normal;
   }
   
-  /* Caption & Small Text */
   .text-caption {
     @apply text-slate-500 text-sm font-medium;
   }
@@ -165,20 +142,10 @@
     @apply text-slate-400 text-xs font-normal;
   }
   
-  /* Brand-specific Text Colors */
   .text-fresh-primary {
     @apply text-fresh-600;
   }
   
-  .text-fresh-secondary {
-    @apply text-fresh-600;
-  }
-  
-  .text-fresh-accent {
-    @apply text-speed-600;
-  }
-  
-  /* Interactive Text States */
   .text-interactive {
     @apply text-slate-700 hover:text-fresh-600 transition-colors duration-200;
   }
@@ -187,7 +154,6 @@
     @apply text-slate-500 hover:text-slate-700 transition-colors duration-200;
   }
 
-  /* Tab-specific styles for visibility fix */
   .tab-inactive {
     @apply text-slate-600 hover:text-slate-800 transition-colors duration-200;
   }

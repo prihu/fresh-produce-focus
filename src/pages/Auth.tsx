@@ -57,12 +57,12 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-background flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
       {/* Freshness Checker-style background decorative elements */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-fresh-200 to-fresh-300 rounded-full mix-blend-multiply filter blur-xl opacity-40 animate-pulse-subtle"></div>
-        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-br from-fresh-100 to-fresh-200 rounded-full mix-blend-multiply filter blur-xl opacity-40 animate-pulse-subtle animation-delay-200"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-gradient-to-br from-fresh-100 to-fresh-100 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse-subtle animation-delay-100"></div>
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-fresh-200 to-fresh-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse-subtle"></div>
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-br from-fresh-100 to-fresh-200 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse-subtle animation-delay-200"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-gradient-to-br from-fresh-100 to-fresh-100 rounded-full mix-blend-multiply filter blur-xl opacity-15 animate-pulse-subtle animation-delay-100"></div>
       </div>
 
       <div className="relative w-full max-w-md animate-fade-in-up">
@@ -78,11 +78,11 @@ export default function AuthPage() {
 
         {/* Feature highlights with Freshness Checker brand colors */}
         <div className="grid grid-cols-2 gap-3 mb-8 animate-slide-in-right animate-delay-100">
-          <div className="flex items-center space-x-2 p-4 bg-white/70 backdrop-blur-sm rounded-2xl border border-fresh-100 shadow-sm hover:shadow-fresh transition-all duration-300">
-            <div className="p-2 bg-fresh-100 rounded-lg">
-              <Leaf className="w-4 h-4 text-fresh-600" />
+          <div className="flex items-center space-x-2 p-4 bg-white/70 backdrop-blur-sm rounded-2xl border border-quality-100 shadow-sm hover:shadow-fresh transition-all duration-300">
+            <div className="p-2 bg-quality-100 rounded-lg">
+              <Leaf className="w-4 h-4 text-quality-600" />
             </div>
-            <span className="text-sm font-semibold text-fresh-700">Fresh Quality</span>
+            <span className="text-sm font-semibold text-quality-700">Fresh Quality</span>
           </div>
           <div className="flex items-center space-x-2 p-4 bg-white/70 backdrop-blur-sm rounded-2xl border border-speed-100 shadow-sm hover:shadow-fresh transition-all duration-300">
             <div className="p-2 bg-speed-100 rounded-lg">
@@ -90,11 +90,11 @@ export default function AuthPage() {
             </div>
             <span className="text-sm font-semibold text-speed-700">Lightning Fast</span>
           </div>
-          <div className="flex items-center space-x-2 p-4 bg-white/70 backdrop-blur-sm rounded-2xl border border-fresh-100 shadow-sm hover:shadow-fresh transition-all duration-300">
-            <div className="p-2 bg-fresh-100 rounded-lg">
-              <Shield className="w-4 h-4 text-fresh-600" />
+          <div className="flex items-center space-x-2 p-4 bg-white/70 backdrop-blur-sm rounded-2xl border border-quality-100 shadow-sm hover:shadow-fresh transition-all duration-300">
+            <div className="p-2 bg-quality-100 rounded-lg">
+              <Shield className="w-4 h-4 text-quality-600" />
             </div>
-            <span className="text-sm font-semibold text-fresh-700">Quality Assured</span>
+            <span className="text-sm font-semibold text-quality-700">Quality Assured</span>
           </div>
           <div className="flex items-center space-x-2 p-4 bg-white/70 backdrop-blur-sm rounded-2xl border border-slate-100 shadow-sm hover:shadow-fresh transition-all duration-300">
             <div className="p-2 bg-slate-100 rounded-lg">
@@ -105,7 +105,7 @@ export default function AuthPage() {
         </div>
 
         <Tabs defaultValue="login" className="w-full animate-slide-in-right animate-delay-200">
-          <TabsList className="grid w-full grid-cols-2 bg-white/80 backdrop-blur-sm border border-fresh-100 shadow-sm rounded-2xl p-1">
+          <TabsList className="grid w-full grid-cols-2 bg-white/80 backdrop-blur-sm border border-quality-100 shadow-sm rounded-2xl p-1">
             <TabsTrigger 
               value="login" 
               className="tab-inactive data-[state=active]:bg-gradient-primary data-[state=active]:text-white data-[state=active]:shadow-fresh rounded-xl font-medium transition-all duration-300"
@@ -122,7 +122,7 @@ export default function AuthPage() {
 
           <TabsContent value="login" className="mt-6">
             <Card className="border-0 shadow-fresh-lg bg-white/90 backdrop-blur-sm rounded-3xl overflow-hidden">
-              <CardHeader className="text-center pb-6 bg-gradient-to-br from-fresh-50 to-transparent">
+              <CardHeader className="text-center pb-6 bg-gradient-to-br from-quality-50 to-transparent">
                 <CardTitle className="text-2xl text-heading-primary">Welcome Back</CardTitle>
                 <CardDescription className="text-body-secondary">
                   Sign in to access your dashboard
@@ -139,7 +139,7 @@ export default function AuthPage() {
                       onChange={(e) => setEmail(e.target.value)} 
                       placeholder="your.email@freshnesschecker.com" 
                       required 
-                      className="border-fresh-200 focus:border-fresh-400 focus:ring-fresh-400/20 bg-white/90 rounded-xl h-12 text-slate-700"
+                      className="border-quality-200 focus:border-quality-400 focus:ring-quality-400/20 bg-white/90 rounded-xl h-12 text-slate-700"
                     />
                   </div>
                   <div className="space-y-2">
@@ -150,7 +150,7 @@ export default function AuthPage() {
                       value={password} 
                       onChange={(e) => setPassword(e.target.value)} 
                       required 
-                      className="border-fresh-200 focus:border-fresh-400 focus:ring-fresh-400/20 bg-white/90 rounded-xl h-12 text-slate-700"
+                      className="border-quality-200 focus:border-quality-400 focus:ring-quality-400/20 bg-white/90 rounded-xl h-12 text-slate-700"
                     />
                   </div>
                   <Button 
@@ -174,7 +174,7 @@ export default function AuthPage() {
 
           <TabsContent value="signup" className="mt-6">
             <Card className="border-0 shadow-fresh-lg bg-white/90 backdrop-blur-sm rounded-3xl overflow-hidden">
-              <CardHeader className="text-center pb-6 bg-gradient-to-br from-fresh-50 to-transparent">
+              <CardHeader className="text-center pb-6 bg-gradient-to-br from-quality-50 to-transparent">
                 <CardTitle className="text-2xl text-heading-primary">Join Freshness Checker</CardTitle>
                 <CardDescription className="text-body-secondary">
                   Create your account to get started
@@ -191,7 +191,7 @@ export default function AuthPage() {
                       onChange={(e) => setEmail(e.target.value)} 
                       placeholder="your.email@freshnesschecker.com" 
                       required 
-                      className="border-fresh-200 focus:border-fresh-400 focus:ring-fresh-400/20 bg-white/90 rounded-xl h-12 text-slate-700"
+                      className="border-quality-200 focus:border-quality-400 focus:ring-quality-400/20 bg-white/90 rounded-xl h-12 text-slate-700"
                     />
                   </div>
                   <div className="space-y-2">
@@ -202,7 +202,7 @@ export default function AuthPage() {
                       value={password} 
                       onChange={(e) => setPassword(e.target.value)} 
                       required 
-                      className="border-fresh-200 focus:border-fresh-400 focus:ring-fresh-400/20 bg-white/90 rounded-xl h-12 text-slate-700"
+                      className="border-quality-200 focus:border-quality-400 focus:ring-quality-400/20 bg-white/90 rounded-xl h-12 text-slate-700"
                     />
                     <p className="text-micro text-slate-500">Password must be at least 6 characters</p>
                   </div>

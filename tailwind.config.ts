@@ -63,8 +63,8 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
-				// Zepto Authentic Brand Colors - Purple-based palette
-				zepto: {
+				// Freshness Checker Brand Colors - Purple-based palette
+				fresh: {
 					50: '#faf7ff',
 					100: '#f2ebff',
 					200: '#e8dcff',
@@ -77,8 +77,8 @@ export default {
 					900: '#541da0',
 					950: '#35106e'
 				},
-				// Zepto Secondary - Vibrant accent colors
-				fresh: {
+				// Quality green for freshness indicators
+				quality: {
 					50: '#f0fdf5',
 					100: '#dcfce8',
 					200: '#bbf7d1',
@@ -91,6 +91,7 @@ export default {
 					900: '#14532d',
 					950: '#052e16'
 				},
+				// Speed orange for fast delivery
 				speed: {
 					50: '#fff8f1',
 					100: '#ffedd5',
