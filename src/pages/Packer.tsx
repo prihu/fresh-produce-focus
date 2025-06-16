@@ -19,17 +19,17 @@ const Packer = () => {
     <>
       <header className="mb-6 flex items-center justify-between">
         <div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900">Freshness Checker Dashboard</h1>
-            <p className="text-slate-800">Orders waiting to be processed.</p>
+            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Freshness Checker Dashboard</h1>
+            <p className="text-gray-700">Orders waiting to be processed.</p>
         </div>
         <Dialog open={isCreateOrderOpen} onOpenChange={setIsCreateOrderOpen}>
             <DialogTrigger asChild>
                 <Button>Create Manual Order</Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="bg-white border-gray-200">
                 <DialogHeader>
-                    <DialogTitle className="text-slate-900">Create a New Order</DialogTitle>
-                    <DialogDescription className="text-slate-700">
+                    <DialogTitle className="text-gray-900">Create a New Order</DialogTitle>
+                    <DialogDescription className="text-gray-700">
                         Enter the order number to create a new order for processing.
                     </DialogDescription>
                 </DialogHeader>

@@ -38,17 +38,17 @@ export function UserNav() {
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56 bg-white" align="end" forceMount>
+      <DropdownMenuContent className="w-56 bg-white border-gray-200" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none text-slate-900">Logged in as</p>
-            <p className="text-xs leading-none text-slate-700">
+            <p className="text-sm font-medium leading-none text-gray-900">Logged in as</p>
+            <p className="text-xs leading-none text-gray-700">
               {user.email}
             </p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleLogout} className="text-slate-800 hover:text-slate-900">
+        <DropdownMenuItem onClick={handleLogout} className="text-gray-800 hover:text-gray-900 hover:bg-gray-50">
           Log out
         </DropdownMenuItem>
       </DropdownMenuContent>
