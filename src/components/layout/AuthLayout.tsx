@@ -12,7 +12,7 @@ export function AuthLayout() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-background">
+      <div className="flex items-center justify-center h-screen bg-white">
         <p className="text-gray-900">Loading...</p>
       </div>
     );
@@ -25,9 +25,9 @@ export function AuthLayout() {
   const showBackButton = location.pathname.startsWith('/packer/');
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-background border-gray-200">
-        <div className="container mx-auto flex h-16 items-center px-4">
+    <div className="min-h-screen bg-white">
+      <header className="border-b bg-white border-gray-200">
+        <div className="container mx-auto flex h-16 items-center px-4 bg-white">
           <div className="mr-4 hidden md:flex">
             <Link to="/" className="mr-6 flex items-center space-x-2">
               <span className="hidden font-bold sm:inline-block text-gray-900">Freshness Checker</span>
@@ -38,7 +38,7 @@ export function AuthLayout() {
           </div>
         </div>
       </header>
-      <main className="container mx-auto p-4 bg-background">
+      <main className="container mx-auto p-4 bg-white min-h-screen">
        {showBackButton && (
          <Button asChild variant="outline" size="sm" className="mb-4">
             <Link to="/packer"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard</Link>

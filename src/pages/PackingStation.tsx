@@ -8,7 +8,7 @@ const PackingStation = () => {
 
   if (!orderId) {
     return (
-      <div className="container mx-auto p-4 text-center">
+      <div className="container mx-auto p-4 text-center bg-white min-h-screen">
         <p className="text-red-500">Invalid Order ID.</p>
         <Button asChild variant="link" className="mt-4">
           <Link to="/packer">Go back to Dashboard</Link>
@@ -18,7 +18,9 @@ const PackingStation = () => {
   }
 
   return (
-    <PackingWorkflow orderId={orderId} />
+    <div className="bg-white min-h-screen">
+      <PackingWorkflow orderId={orderId} />
+    </div>
   );
 };
 

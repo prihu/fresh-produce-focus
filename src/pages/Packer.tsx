@@ -16,8 +16,8 @@ const Packer = () => {
   const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(false);
 
   return (
-    <>
-      <header className="mb-6 flex items-center justify-between">
+    <div className="bg-white min-h-screen">
+      <header className="mb-6 flex items-center justify-between bg-white">
         <div>
             <h1 className="text-3xl font-bold tracking-tight text-gray-900">Freshness Checker Dashboard</h1>
             <p className="text-gray-700">Orders waiting to be processed.</p>
@@ -38,7 +38,7 @@ const Packer = () => {
         </Dialog>
       </header>
       <PackerDashboard />
-    </>
+    </div>
   );
 };
 
