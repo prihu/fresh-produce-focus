@@ -57,67 +57,81 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zepto-50 via-emerald-50 to-zepto-100 flex items-center justify-center p-4">
-      {/* Background decorative elements */}
+    <div className="min-h-screen bg-gradient-background flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Zepto-style background decorative elements */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-zepto-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-emerald-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse animation-delay-200"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-60 h-60 bg-speed-200 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse animation-delay-100"></div>
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-zepto-200 to-zepto-300 rounded-full mix-blend-multiply filter blur-xl opacity-40 animate-pulse-subtle"></div>
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-br from-zepto-100 to-zepto-200 rounded-full mix-blend-multiply filter blur-xl opacity-40 animate-pulse-subtle animation-delay-200"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-gradient-to-br from-fresh-100 to-zepto-100 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse-subtle animation-delay-100"></div>
       </div>
 
       <div className="relative w-full max-w-md animate-fade-in-up">
         {/* Zepto Branding Header */}
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center mb-4">
-            <AppleIcon className="w-12 h-12 text-zepto-600 mr-3" />
-            <h1 className="text-4xl font-bold text-gradient">Zepto</h1>
+          <div className="flex items-center justify-center mb-6">
+            <AppleIcon className="w-14 h-14 text-zepto-500 mr-3" />
+            <h1 className="text-5xl font-bold text-gradient">Zepto</h1>
           </div>
-          <p className="text-body-primary text-lg font-medium">Packer Dashboard</p>
-          <p className="text-caption mt-1">Ensuring freshness, delivered fast</p>
+          <p className="text-heading-secondary text-xl font-semibold">Packer Dashboard</p>
+          <p className="text-caption mt-2 text-slate-600">Ensuring freshness, delivered fast</p>
         </div>
 
-        {/* Feature highlights */}
-        <div className="grid grid-cols-2 gap-4 mb-8 animate-slide-in-right animate-delay-100">
-          <div className="flex items-center space-x-2 p-3 bg-white/50 backdrop-blur-sm rounded-lg border border-zepto-100">
-            <Leaf className="w-5 h-5 text-zepto-600" />
-            <span className="text-sm font-medium text-zepto-primary">Fresh Quality</span>
+        {/* Feature highlights with Zepto brand colors */}
+        <div className="grid grid-cols-2 gap-3 mb-8 animate-slide-in-right animate-delay-100">
+          <div className="flex items-center space-x-2 p-4 bg-white/70 backdrop-blur-sm rounded-2xl border border-zepto-100 shadow-sm hover:shadow-zepto transition-all duration-300">
+            <div className="p-2 bg-fresh-100 rounded-lg">
+              <Leaf className="w-4 h-4 text-fresh-600" />
+            </div>
+            <span className="text-sm font-semibold text-fresh-700">Fresh Quality</span>
           </div>
-          <div className="flex items-center space-x-2 p-3 bg-white/50 backdrop-blur-sm rounded-lg border border-speed-100">
-            <Zap className="w-5 h-5 text-speed-600" />
-            <span className="text-sm font-medium text-zepto-secondary">Fast Delivery</span>
+          <div className="flex items-center space-x-2 p-4 bg-white/70 backdrop-blur-sm rounded-2xl border border-speed-100 shadow-sm hover:shadow-zepto transition-all duration-300">
+            <div className="p-2 bg-speed-100 rounded-lg">
+              <Zap className="w-4 h-4 text-speed-600" />
+            </div>
+            <span className="text-sm font-semibold text-speed-700">Lightning Fast</span>
           </div>
-          <div className="flex items-center space-x-2 p-3 bg-white/50 backdrop-blur-sm rounded-lg border border-blue-100">
-            <Shield className="w-5 h-5 text-blue-600" />
-            <span className="text-sm font-medium text-blue-700">Quality Assured</span>
+          <div className="flex items-center space-x-2 p-4 bg-white/70 backdrop-blur-sm rounded-2xl border border-zepto-100 shadow-sm hover:shadow-zepto transition-all duration-300">
+            <div className="p-2 bg-zepto-100 rounded-lg">
+              <Shield className="w-4 h-4 text-zepto-600" />
+            </div>
+            <span className="text-sm font-semibold text-zepto-700">Quality Assured</span>
           </div>
-          <div className="flex items-center space-x-2 p-3 bg-white/50 backdrop-blur-sm rounded-lg border border-purple-100">
-            <Clock className="w-5 h-5 text-purple-600" />
-            <span className="text-sm font-medium text-purple-700">Real-time Track</span>
+          <div className="flex items-center space-x-2 p-4 bg-white/70 backdrop-blur-sm rounded-2xl border border-slate-100 shadow-sm hover:shadow-zepto transition-all duration-300">
+            <div className="p-2 bg-slate-100 rounded-lg">
+              <Clock className="w-4 h-4 text-slate-600" />
+            </div>
+            <span className="text-sm font-semibold text-slate-700">Real-time Track</span>
           </div>
         </div>
 
         <Tabs defaultValue="login" className="w-full animate-slide-in-right animate-delay-200">
-          <TabsList className="grid w-full grid-cols-2 bg-white/70 backdrop-blur-sm border border-zepto-100">
-            <TabsTrigger value="login" className="data-[state=active]:bg-gradient-primary data-[state=active]:text-white">
+          <TabsList className="grid w-full grid-cols-2 bg-white/80 backdrop-blur-sm border border-zepto-100 shadow-sm rounded-2xl p-1">
+            <TabsTrigger 
+              value="login" 
+              className="tab-inactive data-[state=active]:bg-gradient-primary data-[state=active]:text-white data-[state=active]:shadow-zepto rounded-xl font-medium transition-all duration-300"
+            >
               Login
             </TabsTrigger>
-            <TabsTrigger value="signup" className="data-[state=active]:bg-gradient-primary data-[state=active]:text-white">
+            <TabsTrigger 
+              value="signup" 
+              className="tab-inactive data-[state=active]:bg-gradient-primary data-[state=active]:text-white data-[state=active]:shadow-zepto rounded-xl font-medium transition-all duration-300"
+            >
               Sign Up
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="login">
-            <Card className="border-0 shadow-fresh bg-white/80 backdrop-blur-sm">
-              <CardHeader className="text-center pb-4">
+          <TabsContent value="login" className="mt-6">
+            <Card className="border-0 shadow-fresh bg-white/90 backdrop-blur-sm rounded-3xl overflow-hidden">
+              <CardHeader className="text-center pb-6 bg-gradient-to-br from-zepto-50 to-transparent">
                 <CardTitle className="text-2xl text-heading-primary">Welcome Back</CardTitle>
                 <CardDescription className="text-body-secondary">
                   Sign in to access your packer dashboard
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-8">
                 <form onSubmit={handleLogin} className="space-y-6">
                   <div className="space-y-2">
-                    <Label htmlFor="email" className="text-heading-tertiary">Email Address</Label>
+                    <Label htmlFor="email" className="text-heading-tertiary font-medium">Email Address</Label>
                     <Input 
                       id="email" 
                       type="email" 
@@ -125,23 +139,23 @@ export default function AuthPage() {
                       onChange={(e) => setEmail(e.target.value)} 
                       placeholder="your.email@zepto.com" 
                       required 
-                      className="border-zepto-200 focus:border-zepto-400 focus:ring-zepto-400/20 bg-white/90"
+                      className="border-zepto-200 focus:border-zepto-400 focus:ring-zepto-400/20 bg-white/90 rounded-xl h-12 text-slate-700"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="password" className="text-heading-tertiary">Password</Label>
+                    <Label htmlFor="password" className="text-heading-tertiary font-medium">Password</Label>
                     <Input 
                       id="password" 
                       type="password" 
                       value={password} 
                       onChange={(e) => setPassword(e.target.value)} 
                       required 
-                      className="border-zepto-200 focus:border-zepto-400 focus:ring-zepto-400/20 bg-white/90"
+                      className="border-zepto-200 focus:border-zepto-400 focus:ring-zepto-400/20 bg-white/90 rounded-xl h-12 text-slate-700"
                     />
                   </div>
                   <Button 
                     type="submit" 
-                    className="w-full bg-gradient-primary hover:opacity-90 transition-opacity shadow-brand text-white font-semibold py-3" 
+                    className="w-full bg-gradient-primary hover:opacity-90 transition-all duration-300 shadow-zepto text-white font-semibold py-3 h-12 rounded-xl" 
                     disabled={loading}
                   >
                     {loading ? (
@@ -158,18 +172,18 @@ export default function AuthPage() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="signup">
-            <Card className="border-0 shadow-fresh bg-white/80 backdrop-blur-sm">
-              <CardHeader className="text-center pb-4">
+          <TabsContent value="signup" className="mt-6">
+            <Card className="border-0 shadow-fresh bg-white/90 backdrop-blur-sm rounded-3xl overflow-hidden">
+              <CardHeader className="text-center pb-6 bg-gradient-to-br from-zepto-50 to-transparent">
                 <CardTitle className="text-2xl text-heading-primary">Join Zepto</CardTitle>
                 <CardDescription className="text-body-secondary">
                   Create your packer account to get started
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-8">
                 <form onSubmit={handleSignUp} className="space-y-6">
                   <div className="space-y-2">
-                    <Label htmlFor="signup-email" className="text-heading-tertiary">Email Address</Label>
+                    <Label htmlFor="signup-email" className="text-heading-tertiary font-medium">Email Address</Label>
                     <Input 
                       id="signup-email" 
                       type="email" 
@@ -177,24 +191,24 @@ export default function AuthPage() {
                       onChange={(e) => setEmail(e.target.value)} 
                       placeholder="your.email@zepto.com" 
                       required 
-                      className="border-zepto-200 focus:border-zepto-400 focus:ring-zepto-400/20 bg-white/90"
+                      className="border-zepto-200 focus:border-zepto-400 focus:ring-zepto-400/20 bg-white/90 rounded-xl h-12 text-slate-700"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-password" className="text-heading-tertiary">Password</Label>
+                    <Label htmlFor="signup-password" className="text-heading-tertiary font-medium">Password</Label>
                     <Input 
                       id="signup-password" 
                       type="password" 
                       value={password} 
                       onChange={(e) => setPassword(e.target.value)} 
                       required 
-                      className="border-zepto-200 focus:border-zepto-400 focus:ring-zepto-400/20 bg-white/90"
+                      className="border-zepto-200 focus:border-zepto-400 focus:ring-zepto-400/20 bg-white/90 rounded-xl h-12 text-slate-700"
                     />
-                    <p className="text-micro">Password must be at least 6 characters</p>
+                    <p className="text-micro text-slate-500">Password must be at least 6 characters</p>
                   </div>
                   <Button 
                     type="submit" 
-                    className="w-full bg-gradient-fresh hover:opacity-90 transition-opacity shadow-brand text-white font-semibold py-3" 
+                    className="w-full bg-gradient-fresh hover:opacity-90 transition-all duration-300 shadow-zepto text-white font-semibold py-3 h-12 rounded-xl" 
                     disabled={loading}
                   >
                     {loading ? (
@@ -214,10 +228,10 @@ export default function AuthPage() {
 
         {/* Footer */}
         <div className="mt-8 text-center">
-          <p className="text-caption">
+          <p className="text-caption text-slate-600">
             By signing in, you agree to Zepto's quality standards
           </p>
-          <p className="text-micro mt-1">
+          <p className="text-micro mt-2 text-slate-500">
             © 2024 Zepto. Freshness delivered fast.
           </p>
         </div>

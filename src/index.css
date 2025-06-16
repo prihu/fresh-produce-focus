@@ -3,12 +3,12 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Zepto Brand Design System - Modern & Fresh */
+/* Zepto Authentic Design System - Purple-based brand */
 
 @layer base {
   :root {
-    /* Zepto Brand Colors */
-    --background: 250 250 250; /* Off-white for freshness */
+    /* Zepto Authentic Brand Colors */
+    --background: 255 255 255; /* Pure white */
     --foreground: 15 23 42; /* Deep slate for readability */
 
     --card: 255 255 255; /* Pure white cards */
@@ -17,18 +17,18 @@
     --popover: 255 255 255;
     --popover-foreground: 15 23 42;
 
-    /* Zepto Primary - Fresh Green */
-    --primary: 34 197 94; /* Fresh green representing freshness */
+    /* Zepto Primary - Authentic Purple */
+    --primary: 160 101 255; /* Zepto purple #a065ff */
     --primary-foreground: 255 255 255;
 
-    /* Zepto Secondary - Speed Orange */
-    --secondary: 251 146 60; /* Orange for speed and energy */
+    /* Zepto Secondary - Quality Green */
+    --secondary: 34 197 94; /* Fresh green for quality */
     --secondary-foreground: 255 255 255;
 
-    --muted: 248 250 252; /* Light gray */
-    --muted-foreground: 100 116 139;
+    --muted: 248 250 252; /* Light gray background */
+    --muted-foreground: 100 116 139; /* Medium gray text */
 
-    --accent: 16 185 129; /* Emerald accent */
+    --accent: 160 101 255; /* Purple accent */
     --accent-foreground: 255 255 255;
 
     --destructive: 239 68 68; /* Red for errors */
@@ -36,14 +36,15 @@
 
     --border: 226 232 240; /* Light border */
     --input: 226 232 240;
-    --ring: 34 197 94; /* Green focus ring */
+    --ring: 160 101 255; /* Purple focus ring */
 
-    --radius: 12px; /* Rounded corners for modern feel */
+    --radius: 16px; /* Zepto's rounded corners */
 
     /* Zepto Brand Gradients */
-    --gradient-primary: linear-gradient(135deg, rgb(34, 197, 94) 0%, rgb(16, 185, 129) 100%);
-    --gradient-secondary: linear-gradient(135deg, rgb(251, 146, 60) 0%, rgb(249, 115, 22) 100%);
-    --gradient-fresh: linear-gradient(135deg, rgb(16, 185, 129) 0%, rgb(5, 150, 105) 100%);
+    --gradient-primary: linear-gradient(135deg, rgb(160, 101, 255) 0%, rgb(139, 61, 255) 100%);
+    --gradient-secondary: linear-gradient(135deg, rgb(34, 197, 94) 0%, rgb(22, 163, 74) 100%);
+    --gradient-fresh: linear-gradient(135deg, rgb(160, 101, 255) 0%, rgb(118, 40, 240) 100%);
+    --gradient-background: linear-gradient(135deg, rgb(250, 247, 255) 0%, rgb(242, 235, 255) 50%, rgb(232, 220, 255) 100%);
   }
 
   .dark {
@@ -56,7 +57,7 @@
     --popover: 15 23 42;
     --popover-foreground: 248 250 252;
 
-    --primary: 34 197 94;
+    --primary: 160 101 255;
     --primary-foreground: 255 255 255;
 
     --secondary: 30 41 59;
@@ -73,7 +74,7 @@
 
     --border: 30 41 59;
     --input: 30 41 59;
-    --ring: 34 197 94;
+    --ring: 160 101 255;
   }
 }
 
@@ -100,6 +101,10 @@
   .bg-gradient-fresh {
     background: var(--gradient-fresh);
   }
+
+  .bg-gradient-background {
+    background: var(--gradient-background);
+  }
   
   .text-gradient {
     background: var(--gradient-primary);
@@ -108,12 +113,12 @@
     background-clip: text;
   }
   
-  .shadow-brand {
-    box-shadow: 0 10px 25px -3px rgba(34, 197, 94, 0.1), 0 4px 6px -2px rgba(34, 197, 94, 0.05);
+  .shadow-zepto {
+    box-shadow: 0 10px 25px -3px rgba(160, 101, 255, 0.1), 0 4px 6px -2px rgba(160, 101, 255, 0.05);
   }
   
   .shadow-fresh {
-    box-shadow: 0 20px 25px -5px rgba(16, 185, 129, 0.1), 0 10px 10px -5px rgba(16, 185, 129, 0.04);
+    box-shadow: 0 20px 25px -5px rgba(160, 101, 255, 0.08), 0 10px 10px -5px rgba(160, 101, 255, 0.04);
   }
   
   .border-gradient {
@@ -123,9 +128,9 @@
   }
 }
 
-/* Typography Hierarchy System */
+/* Zepto Typography System */
 @layer utilities {
-  /* Heading Typography */
+  /* Heading Typography - Purple-tinted grays */
   .text-heading-primary {
     @apply text-slate-900 font-bold tracking-tight;
   }
@@ -166,11 +171,11 @@
   }
   
   .text-zepto-secondary {
-    @apply text-speed-600;
+    @apply text-fresh-600;
   }
   
   .text-zepto-accent {
-    @apply text-emerald-600;
+    @apply text-speed-600;
   }
   
   /* Interactive Text States */
@@ -181,9 +186,18 @@
   .text-interactive-muted {
     @apply text-slate-500 hover:text-slate-700 transition-colors duration-200;
   }
+
+  /* Tab-specific styles for visibility fix */
+  .tab-inactive {
+    @apply text-slate-600 hover:text-slate-800 transition-colors duration-200;
+  }
+  
+  .tab-active {
+    @apply text-white font-semibold;
+  }
 }
 
-/* Modern animations */
+/* Zepto Modern Animations */
 @layer utilities {
   @keyframes fadeInUp {
     from {
@@ -207,12 +221,27 @@
     }
   }
   
+  @keyframes pulse-subtle {
+    0%, 100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.9;
+      transform: scale(1.02);
+    }
+  }
+  
   .animate-fade-in-up {
     animation: fadeInUp 0.6s ease-out;
   }
   
   .animate-slide-in-right {
     animation: slideInRight 0.6s ease-out;
+  }
+
+  .animate-pulse-subtle {
+    animation: pulse-subtle 3s ease-in-out infinite;
   }
   
   .animate-delay-100 {

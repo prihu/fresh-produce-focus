@@ -63,14 +63,28 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
-				// Zepto Brand Colors
+				// Zepto Authentic Brand Colors - Purple-based palette
 				zepto: {
-					50: '#f0fdf4',
-					100: '#dcfce7',
-					200: '#bbf7d0',
+					50: '#faf7ff',
+					100: '#f2ebff',
+					200: '#e8dcff',
+					300: '#d5c2ff',
+					400: '#bc98ff',
+					500: '#a065ff', // Primary purple
+					600: '#8b3dff',
+					700: '#7628f0',
+					800: '#6422c4',
+					900: '#541da0',
+					950: '#35106e'
+				},
+				// Zepto Secondary - Vibrant accent colors
+				fresh: {
+					50: '#f0fdf5',
+					100: '#dcfce8',
+					200: '#bbf7d1',
 					300: '#86efac',
 					400: '#4ade80',
-					500: '#22c55e', // Primary green
+					500: '#22c55e', // Fresh green for quality
 					600: '#16a34a',
 					700: '#15803d',
 					800: '#166534',
@@ -78,30 +92,17 @@ export default {
 					950: '#052e16'
 				},
 				speed: {
-					50: '#fff7ed',
+					50: '#fff8f1',
 					100: '#ffedd5',
 					200: '#fed7aa',
 					300: '#fdba74',
-					400: '#fb923c', // Speed orange
-					500: '#f97316',
+					400: '#fb923c',
+					500: '#f97316', // Speed orange
 					600: '#ea580c',
 					700: '#c2410c',
 					800: '#9a3412',
 					900: '#7c2d12',
 					950: '#431407'
-				},
-				emerald: {
-					50: '#ecfdf5',
-					100: '#d1fae5',
-					200: '#a7f3d0',
-					300: '#6ee7b7',
-					400: '#34d399',
-					500: '#10b981', // Accent emerald
-					600: '#059669',
-					700: '#047857',
-					800: '#065f46',
-					900: '#064e3b',
-					950: '#022c22'
 				}
 			},
 			borderRadius: {
