@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AppleIcon } from '@/components/AppleIcon';
+import AppleIcon from '@/components/AppleIcon';
 import { Leaf, Zap, Shield, Clock } from 'lucide-react';
 
 export default function AuthPage() {
