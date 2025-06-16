@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
@@ -35,13 +34,13 @@ const OrderCard = ({ order }: OrderCardProps) => {
         queryFn: () => fetchOrderPhotos(order.id),
     });
 
-    const handleImageError = (photoId: string) => {
-        console.error('Failed to load image for photo:', photoId);
+    const handleImageError = (photoId: string, imageUrl: string) => {
+        console.error('Image failed to load for photo:', photoId, 'URL:', imageUrl);
         setImageErrors(prev => new Set([...prev, photoId]));
     };
 
-    const handleImageLoad = (photoId: string) => {
-        console.log('Image loaded successfully for photo:', photoId);
+    const handleImageLoad = (photoId: string, imageUrl: string) => {
+        console.log('Image loaded successfully for photo:', photoId, 'URL:', imageUrl);
         setImageErrors(prev => {
             const newSet = new Set(prev);
             newSet.delete(photoId);
@@ -51,13 +50,30 @@ const OrderCard = ({ order }: OrderCardProps) => {
 
     const getImageUrl = (photo: PackingPhoto) => {
         try {
-            const url = supabase.storage
+            // Generate the public URL
+            const { data } = supabase.storage
                 .from('packing-photos')
-                .getPublicUrl(photo.storage_path).data.publicUrl;
-            console.log('Generated thumbnail URL for photo', photo.id, ':', url);
+                .getPublicUrl(photo.storage_path);
+            
+            const url = data.publicUrl;
+            console.log('Generated image URL for photo', photo.id, ':', url);
+            console.log('Storage path:', photo.storage_path);
+            
+            // Test if the URL is accessible by trying to fetch it
+            fetch(url, { method: 'HEAD' })
+                .then(response => {
+                    console.log('Image accessibility test for', photo.id, '- Status:', response.status);
+                    if (!response.ok) {
+                        console.error('Image not accessible:', url, 'Status:', response.status);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error testing image accessibility:', error);
+                });
+            
             return url;
         } catch (error) {
-            console.error('Error generating thumbnail URL:', error);
+            console.error('Error generating image URL for photo', photo.id, ':', error);
             return null;
         }
     };
@@ -154,7 +170,7 @@ const OrderCard = ({ order }: OrderCardProps) => {
                                 <span>{photos.length} photo{photos.length > 1 ? 's' : ''} uploaded</span>
                             </div>
                             
-                            {/* Photo thumbnails with error handling */}
+                            {/* Photo thumbnails with enhanced error handling */}
                             <div className="flex gap-2 overflow-x-auto">
                                 {photos.slice(0, 3).map((photo) => {
                                     const imageUrl = getImageUrl(photo);
@@ -167,8 +183,9 @@ const OrderCard = ({ order }: OrderCardProps) => {
                                                     src={imageUrl}
                                                     alt="Packing photo"
                                                     className="w-16 h-16 object-cover rounded border border-gray-200"
-                                                    onError={() => handleImageError(photo.id)}
-                                                    onLoad={() => handleImageLoad(photo.id)}
+                                                    onError={() => handleImageError(photo.id, imageUrl)}
+                                                    onLoad={() => handleImageLoad(photo.id, imageUrl)}
+                                                    crossOrigin="anonymous"
                                                 />
                                             ) : (
                                                 <div className="w-16 h-16 bg-gray-100 rounded border border-gray-200 flex items-center justify-center">
