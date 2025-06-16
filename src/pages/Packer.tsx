@@ -19,8 +19,8 @@ const Packer = () => {
     <>
       <header className="mb-6 flex items-center justify-between">
         <div>
-            <h1 className="text-3xl font-bold tracking-tight">Freshness Checker Dashboard</h1>
-            <p className="text-muted-foreground">Orders waiting to be processed.</p>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900">Freshness Checker Dashboard</h1>
+            <p className="text-slate-800">Orders waiting to be processed.</p>
         </div>
         <Dialog open={isCreateOrderOpen} onOpenChange={setIsCreateOrderOpen}>
             <DialogTrigger asChild>
@@ -28,8 +28,8 @@ const Packer = () => {
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Create a New Order</DialogTitle>
-                    <DialogDescription>
+                    <DialogTitle className="text-slate-900">Create a New Order</DialogTitle>
+                    <DialogDescription className="text-slate-700">
                         Enter the order number to create a new order for processing.
                     </DialogDescription>
                 </DialogHeader>

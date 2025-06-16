@@ -13,7 +13,7 @@ export function AuthLayout() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-background">
-        <p>Loading...</p>
+        <p className="text-slate-900">Loading...</p>
       </div>
     );
   }
@@ -30,7 +30,7 @@ export function AuthLayout() {
         <div className="container mx-auto flex h-16 items-center px-4">
           <div className="mr-4 hidden md:flex">
             <Link to="/" className="mr-6 flex items-center space-x-2">
-              <span className="hidden font-bold sm:inline-block">Freshness Checker</span>
+              <span className="hidden font-bold sm:inline-block text-slate-900">Freshness Checker</span>
             </Link>
           </div>
           <div className="flex flex-1 items-center justify-end space-x-4">
