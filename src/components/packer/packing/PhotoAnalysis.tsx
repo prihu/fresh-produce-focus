@@ -66,7 +66,6 @@ const PhotoAnalysis = ({ packingPhoto, onStatusUpdate }: PhotoAnalysisProps) => 
 
                     if (data && data.ai_analysis_status !== packingPhoto.ai_analysis_status) {
                         console.log('Status updated via polling:', data.ai_analysis_status);
-                        setLastUpdated(Date.now());
                         onStatusUpdate?.(data);
                     }
                 } catch (error) {

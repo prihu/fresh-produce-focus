@@ -28,12 +28,6 @@ const QualityAssuranceSection = ({
     onPhotoDeleted,
     onPhotoStatusUpdate
 }: QualityAssuranceSectionProps) => {
-    const { uploadPhoto, isUploading } = useSecurePhotoUpload({
-        orderId,
-        productId: product.id,
-        onPhotoUploaded,
-    });
-
     const isPacked = orderStatus === 'packed';
 
     return (
@@ -56,9 +50,9 @@ const QualityAssuranceSection = ({
 
                 {!packingPhoto ? (
                     <PhotoCapture
-                        onCapture={uploadPhoto}
-                        isUploading={isUploading}
-                        disabled={isPacked}
+                        orderId={orderId}
+                        productId={product.id}
+                        onPhotoUploaded={onPhotoUploaded}
                     />
                 ) : (
                     <div className="space-y-4">
