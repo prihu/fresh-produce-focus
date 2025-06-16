@@ -3,72 +3,73 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Freshness Checker Authentic Design System - Purple-based brand */
+/* EMERGENCY CACHE-BUSTING: Force white background - v2.0 */
+/* This forces a complete CSS rebuild with explicit overrides */
 
 @layer base {
   :root {
-    /* Freshness Checker Brand Colors - Pure white background */
-    --background: 255 255 255; /* Pure white */
-    --foreground: 15 23 42; /* Deep slate for readability */
+    /* FORCED WHITE BACKGROUND - Cache bust v2.0 */
+    --background: 255 255 255 !important; /* Pure white - FORCED */
+    --foreground: 15 23 42 !important; /* Deep slate for readability */
 
-    --card: 255 255 255; /* Pure white cards */
-    --card-foreground: 15 23 42;
+    --card: 255 255 255 !important; /* Pure white cards */
+    --card-foreground: 15 23 42 !important;
 
-    --popover: 255 255 255;
-    --popover-foreground: 15 23 42;
+    --popover: 255 255 255 !important;
+    --popover-foreground: 15 23 42 !important;
 
     /* Freshness Checker Primary - Purple */
-    --primary: 160 101 255; /* Fresh purple #a065ff */
-    --primary-foreground: 255 255 255;
+    --primary: 160 101 255 !important; /* Fresh purple #a065ff */
+    --primary-foreground: 255 255 255 !important;
 
     /* Freshness Checker Secondary - Quality Green */
-    --secondary: 34 197 94; /* Fresh green for quality */
-    --secondary-foreground: 255 255 255;
+    --secondary: 34 197 94 !important; /* Fresh green for quality */
+    --secondary-foreground: 255 255 255 !important;
 
-    --muted: 248 250 252; /* Light gray background */
-    --muted-foreground: 100 116 139; /* Medium gray text */
+    --muted: 248 250 252 !important; /* Light gray background */
+    --muted-foreground: 100 116 139 !important; /* Medium gray text */
 
-    --accent: 160 101 255; /* Purple accent */
-    --accent-foreground: 255 255 255;
+    --accent: 160 101 255 !important; /* Purple accent */
+    --accent-foreground: 255 255 255 !important;
 
-    --destructive: 239 68 68; /* Red for errors */
-    --destructive-foreground: 255 255 255;
+    --destructive: 239 68 68 !important; /* Red for errors */
+    --destructive-foreground: 255 255 255 !important;
 
-    --border: 226 232 240; /* Light border */
-    --input: 226 232 240;
-    --ring: 160 101 255; /* Purple focus ring */
+    --border: 226 232 240 !important; /* Light border */
+    --input: 226 232 240 !important;
+    --ring: 160 101 255 !important; /* Purple focus ring */
 
-    --radius: 16px; /* Freshness Checker's rounded corners */
+    --radius: 16px !important; /* Freshness Checker's rounded corners */
   }
 
   .dark {
-    --background: 2 6 23;
-    --foreground: 248 250 252;
+    --background: 2 6 23 !important;
+    --foreground: 248 250 252 !important;
 
-    --card: 15 23 42;
-    --card-foreground: 248 250 252;
+    --card: 15 23 42 !important;
+    --card-foreground: 248 250 252 !important;
 
-    --popover: 15 23 42;
-    --popover-foreground: 15 23 42;
+    --popover: 15 23 42 !important;
+    --popover-foreground: 15 23 42 !important;
 
-    --primary: 160 101 255;
-    --primary-foreground: 255 255 255;
+    --primary: 160 101 255 !important;
+    --primary-foreground: 255 255 255 !important;
 
-    --secondary: 30 41 59;
-    --secondary-foreground: 248 250 252;
+    --secondary: 30 41 59 !important;
+    --secondary-foreground: 248 250 252 !important;
 
-    --muted: 30 41 59;
-    --muted-foreground: 148 163 184;
+    --muted: 30 41 59 !important;
+    --muted-foreground: 148 163 184 !important;
 
-    --accent: 30 41 59;
-    --accent-foreground: 248 250 252;
+    --accent: 30 41 59 !important;
+    --accent-foreground: 248 250 252 !important;
 
-    --destructive: 220 38 38;
-    --destructive-foreground: 248 250 252;
+    --destructive: 220 38 38 !important;
+    --destructive-foreground: 248 250 252 !important;
 
-    --border: 30 41 59;
-    --input: 30 41 59;
-    --ring: 160 101 255;
+    --border: 30 41 59 !important;
+    --input: 30 41 59 !important;
+    --ring: 160 101 255 !important;
   }
 }
 
@@ -77,34 +78,58 @@
     @apply border-border;
   }
 
+  /* EMERGENCY WHITE BACKGROUND ENFORCEMENT */
+  html {
+    background-color: rgb(255, 255, 255) !important;
+  }
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    background-color: rgb(255, 255, 255) !important; /* Force white */
+    background: rgb(255, 255, 255) !important; /* Force white */
+  }
+
+  /* Force all main containers to white background */
+  .min-h-screen {
+    background-color: rgb(255, 255, 255) !important;
+  }
+
+  /* Override any potential gradient backgrounds */
+  .bg-gradient-background,
+  .bg-gradient-primary,
+  .bg-gradient-fresh {
+    background: rgb(255, 255, 255) !important;
   }
 }
 
 /* Freshness Checker Brand Utilities */
 @layer utilities {
   .bg-gradient-primary {
-    background: linear-gradient(135deg, rgb(160, 101, 255) 0%, rgb(139, 61, 255) 100%);
+    background: linear-gradient(135deg, rgb(160, 101, 255) 0%, rgb(139, 61, 255) 100%) !important;
   }
   
   .bg-gradient-fresh {
-    background: linear-gradient(135deg, rgb(160, 101, 255) 0%, rgb(118, 40, 240) 100%);
+    background: linear-gradient(135deg, rgb(160, 101, 255) 0%, rgb(118, 40, 240) 100%) !important;
   }
   
   .text-gradient {
-    background: linear-gradient(135deg, rgb(160, 101, 255) 0%, rgb(139, 61, 255) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    background: linear-gradient(135deg, rgb(160, 101, 255) 0%, rgb(139, 61, 255) 100%) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    background-clip: text !important;
   }
   
   .shadow-fresh {
-    box-shadow: 0 10px 25px -3px rgba(160, 101, 255, 0.1), 0 4px 6px -2px rgba(160, 101, 255, 0.05);
+    box-shadow: 0 10px 25px -3px rgba(160, 101, 255, 0.1), 0 4px 6px -2px rgba(160, 101, 255, 0.05) !important;
   }
   
   .shadow-fresh-lg {
-    box-shadow: 0 20px 25px -5px rgba(160, 101, 255, 0.08), 0 10px 10px -5px rgba(160, 101, 255, 0.04);
+    box-shadow: 0 20px 25px -5px rgba(160, 101, 255, 0.08), 0 10px 10px -5px rgba(160, 101, 255, 0.04) !important;
+  }
+
+  /* FORCE WHITE BACKGROUND UTILITY */
+  .bg-background {
+    background-color: rgb(255, 255, 255) !important;
   }
 }
 
