@@ -123,6 +123,66 @@
   }
 }
 
+/* Typography Hierarchy System */
+@layer utilities {
+  /* Heading Typography */
+  .text-heading-primary {
+    @apply text-slate-900 font-bold tracking-tight;
+  }
+  
+  .text-heading-secondary {
+    @apply text-slate-800 font-semibold;
+  }
+  
+  .text-heading-tertiary {
+    @apply text-slate-700 font-medium;
+  }
+  
+  /* Body Typography */
+  .text-body-primary {
+    @apply text-slate-700 font-normal;
+  }
+  
+  .text-body-secondary {
+    @apply text-slate-600 font-normal;
+  }
+  
+  .text-body-muted {
+    @apply text-slate-500 font-normal;
+  }
+  
+  /* Caption & Small Text */
+  .text-caption {
+    @apply text-slate-500 text-sm font-medium;
+  }
+  
+  .text-micro {
+    @apply text-slate-400 text-xs font-normal;
+  }
+  
+  /* Brand-specific Text Colors */
+  .text-zepto-primary {
+    @apply text-zepto-600;
+  }
+  
+  .text-zepto-secondary {
+    @apply text-speed-600;
+  }
+  
+  .text-zepto-accent {
+    @apply text-emerald-600;
+  }
+  
+  /* Interactive Text States */
+  .text-interactive {
+    @apply text-slate-700 hover:text-zepto-600 transition-colors duration-200;
+  }
+  
+  .text-interactive-muted {
+    @apply text-slate-500 hover:text-slate-700 transition-colors duration-200;
+  }
+}
+
 /* Modern animations */
 @layer utilities {
   @keyframes fadeInUp {
