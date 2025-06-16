@@ -22,7 +22,7 @@ export const useImageUrl = ({
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
 
-  // Memoize URL generation to prevent unnecessary re-computations
+  // Since bucket is now public, we can use getPublicUrl directly
   const imageUrl = useMemo(() => {
     if (!storagePath) {
       console.log('useImageUrl: No storage path provided');
@@ -35,10 +35,10 @@ export const useImageUrl = ({
         .getPublicUrl(storagePath);
       
       const url = data.publicUrl;
-      console.log('useImageUrl: Generated URL for', storagePath, ':', url);
+      console.log('useImageUrl: Generated public URL for', storagePath, ':', url);
       return url;
     } catch (error) {
-      console.error('useImageUrl: Error generating URL for', storagePath, ':', error);
+      console.error('useImageUrl: Error generating public URL for', storagePath, ':', error);
       setError('Failed to generate image URL');
       return null;
     }
