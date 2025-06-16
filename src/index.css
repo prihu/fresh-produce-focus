@@ -1,13 +1,12 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Zepto Authentic Design System - Purple-based brand */
+/* Freshness Checker Authentic Design System - Purple-based brand */
 
 @layer base {
   :root {
-    /* Zepto Authentic Brand Colors */
+    /* Freshness Checker Authentic Brand Colors */
     --background: 255 255 255; /* Pure white */
     --foreground: 15 23 42; /* Deep slate for readability */
 
@@ -17,11 +16,11 @@
     --popover: 255 255 255;
     --popover-foreground: 15 23 42;
 
-    /* Zepto Primary - Authentic Purple */
-    --primary: 160 101 255; /* Zepto purple #a065ff */
+    /* Freshness Checker Primary - Authentic Purple */
+    --primary: 160 101 255; /* Fresh purple #a065ff */
     --primary-foreground: 255 255 255;
 
-    /* Zepto Secondary - Quality Green */
+    /* Freshness Checker Secondary - Quality Green */
     --secondary: 34 197 94; /* Fresh green for quality */
     --secondary-foreground: 255 255 255;
 
@@ -38,9 +37,9 @@
     --input: 226 232 240;
     --ring: 160 101 255; /* Purple focus ring */
 
-    --radius: 16px; /* Zepto's rounded corners */
+    --radius: 16px; /* Freshness Checker's rounded corners */
 
-    /* Zepto Brand Gradients */
+    /* Freshness Checker Brand Gradients */
     --gradient-primary: linear-gradient(135deg, rgb(160, 101, 255) 0%, rgb(139, 61, 255) 100%);
     --gradient-secondary: linear-gradient(135deg, rgb(34, 197, 94) 0%, rgb(22, 163, 74) 100%);
     --gradient-fresh: linear-gradient(135deg, rgb(160, 101, 255) 0%, rgb(118, 40, 240) 100%);
@@ -88,7 +87,7 @@
   }
 }
 
-/* Zepto Brand Utilities */
+/* Freshness Checker Brand Utilities */
 @layer utilities {
   .bg-gradient-primary {
     background: var(--gradient-primary);
@@ -113,11 +112,11 @@
     background-clip: text;
   }
   
-  .shadow-zepto {
+  .shadow-fresh {
     box-shadow: 0 10px 25px -3px rgba(160, 101, 255, 0.1), 0 4px 6px -2px rgba(160, 101, 255, 0.05);
   }
   
-  .shadow-fresh {
+  .shadow-fresh-lg {
     box-shadow: 0 20px 25px -5px rgba(160, 101, 255, 0.08), 0 10px 10px -5px rgba(160, 101, 255, 0.04);
   }
   
@@ -128,7 +127,7 @@
   }
 }
 
-/* Zepto Typography System */
+/* Freshness Checker Typography System */
 @layer utilities {
   /* Heading Typography - Purple-tinted grays */
   .text-heading-primary {
@@ -166,21 +165,21 @@
   }
   
   /* Brand-specific Text Colors */
-  .text-zepto-primary {
-    @apply text-zepto-600;
-  }
-  
-  .text-zepto-secondary {
+  .text-fresh-primary {
     @apply text-fresh-600;
   }
   
-  .text-zepto-accent {
+  .text-fresh-secondary {
+    @apply text-fresh-600;
+  }
+  
+  .text-fresh-accent {
     @apply text-speed-600;
   }
   
   /* Interactive Text States */
   .text-interactive {
-    @apply text-slate-700 hover:text-zepto-600 transition-colors duration-200;
+    @apply text-slate-700 hover:text-fresh-600 transition-colors duration-200;
   }
   
   .text-interactive-muted {
@@ -197,7 +196,7 @@
   }
 }
 
-/* Zepto Modern Animations */
+/* Freshness Checker Modern Animations */
 @layer utilities {
   @keyframes fadeInUp {
     from {
