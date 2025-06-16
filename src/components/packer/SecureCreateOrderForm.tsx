@@ -48,15 +48,59 @@ const SecureCreateOrderForm = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onMutate: async (sanitizedOrderNumber) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['packerOrders'] });
+
+      // Snapshot the previous value
+      const previousOrders = queryClient.getQueryData(['packerOrders']);
+
+      // Optimistically update to the new value
+      if (user) {
+        const optimisticOrder = {
+          id: `temp-${Date.now()}`, // Temporary ID
+          order_number: sanitizedOrderNumber,
+          manually_created: true,
+          packer_id: user.id,
+          status: 'pending_packing' as const,
+          created_at: new Date().toISOString()
+        };
+
+        queryClient.setQueryData(['packerOrders'], (old: any) => {
+          return old ? [optimisticOrder, ...old] : [optimisticOrder];
+        });
+      }
+
+      // Return a context object with the snapshotted value
+      return { previousOrders };
+    },
+    onSuccess: (data) => {
       toast.success('Order created successfully');
       setOrderNumber('');
       setValidationError(null);
-      queryClient.invalidateQueries({ queryKey: ['pendingOrders'] });
+      
+      // Update the cache with the real data from server
+      queryClient.setQueryData(['packerOrders'], (old: any) => {
+        if (!old) return [data];
+        
+        // Replace the optimistic order with the real one
+        return old.map((order: any) => 
+          order.id.startsWith('temp-') ? data : order
+        );
+      });
     },
-    onError: (error) => {
+    onError: (error, _, context) => {
+      // Rollback on error
+      if (context?.previousOrders) {
+        queryClient.setQueryData(['packerOrders'], context.previousOrders);
+      }
+      
       const safeMessage = SecurityUtils.formatSafeErrorMessage(error);
       toast.error(`Failed to create order: ${safeMessage}`);
+    },
+    onSettled: () => {
+      // Always refetch after error or success to ensure data is in sync
+      queryClient.invalidateQueries({ queryKey: ['packerOrders'] });
     },
   });
 

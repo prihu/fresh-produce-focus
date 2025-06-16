@@ -18,9 +18,11 @@ const fetchOrders = async () => {
 };
 
 const PackerDashboard = () => {
-  const { data: orders, isLoading, error } = useQuery({
+  const { data: orders, isLoading, error, isRefetching } = useQuery({
     queryKey: ["packerOrders"],
     queryFn: fetchOrders,
+    refetchOnWindowFocus: false,
+    staleTime: 30000, // Consider data fresh for 30 seconds
   });
 
   if (isLoading) {
@@ -48,6 +50,12 @@ const PackerDashboard = () => {
   return (
     <div className="space-y-6">
       <SecureCreateOrderForm />
+      
+      {isRefetching && (
+        <div className="text-sm text-gray-500 text-center">
+          Refreshing orders...
+        </div>
+      )}
       
       {(!pendingOrders.length && !completedOrders.length) ? (
         <Alert className="bg-white border-gray-200">
