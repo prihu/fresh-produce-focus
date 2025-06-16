@@ -1,7 +1,6 @@
-
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { useSecureAuth } from '@/contexts/SecureAuthContext';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +12,7 @@ import AppleIcon from '@/components/AppleIcon';
 import { Leaf, Zap, Shield, Clock } from 'lucide-react';
 
 export default function AuthPage() {
-  const { session } = useAuth();
+  const { user } = useSecureAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -52,7 +51,7 @@ export default function AuthPage() {
     setLoading(false);
   };
 
-  if (session) {
+  if (user) {
     return <Navigate to="/" replace />;
   }
 
