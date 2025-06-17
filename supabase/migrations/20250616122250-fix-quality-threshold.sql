@@ -1,4 +1,5 @@
 
+
 -- Update trigger to enforce quality and freshness scores >= 6
 CREATE OR REPLACE FUNCTION public.prevent_packed_if_scores_low()
  RETURNS trigger
@@ -40,3 +41,4 @@ BEGIN
   RETURN NEW;
 END;
 $function$;
+
