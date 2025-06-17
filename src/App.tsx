@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -9,6 +8,7 @@ import Auth from "./pages/Auth";
 import Packer from "./pages/Packer";
 import PackingStation from "./pages/PackingStation";
 import NotFound from "./pages/NotFound";
+import HealthCheck from "./pages/HealthCheck";
 
 const queryClient = new QueryClient();
 
@@ -87,6 +87,10 @@ function AppRoutes() {
               <Auth />
             </PublicRoute>
           } 
+        />
+        <Route 
+          path="/health-check" 
+          element={<HealthCheck />} 
         />
         <Route 
           path="/packer" 
