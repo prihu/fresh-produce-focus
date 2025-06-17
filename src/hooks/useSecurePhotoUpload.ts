@@ -101,24 +101,52 @@ export const useSecurePhotoUpload = ({ orderId, productId, onPhotoUploaded }: Us
       }
       
       toast({ 
-        title: "Success", 
-        description: "Photo uploaded and analysis started." 
+        title: "Photo uploaded successfully", 
+        description: "Starting AI analysis..." 
       });
 
-      // Trigger AI analysis
+      // Call onPhotoUploaded immediately after successful upload
+      onPhotoUploaded(photoRecord);
+
+      // Trigger AI analysis with proper error handling
       try {
-        await supabase.functions.invoke('analyze-image', {
+        console.log('Invoking analyze-image function for photo:', photoRecord.id);
+        
+        const { data: functionData, error: functionError } = await supabase.functions.invoke('analyze-image', {
           body: { packing_photo_id: photoRecord.id },
         });
-      } catch (analysisError) {
-        console.warn('AI analysis failed to start:', SecurityUtils.formatSafeErrorMessage(analysisError));
-        // Don't fail the upload if analysis fails to start
+
+        if (functionError) {
+          console.error('Function invocation error:', functionError);
+          throw new Error(`Analysis failed to start: ${functionError.message}`);
+        }
+
+        console.log('Function invocation successful:', functionData);
+        
+        toast({ 
+          title: "Analysis Started", 
+          description: "AI analysis is now processing your image. This may take 30-60 seconds." 
+        });
+
+      } catch (analysisError: any) {
+        console.error('AI analysis invocation failed:', analysisError);
+        
+        // Update photo status to failed since we couldn't start analysis
+        await supabase
+          .from('packing_photos')
+          .update({ ai_analysis_status: 'failed' })
+          .eq('id', photoRecord.id);
+
+        toast({
+          title: "Analysis Failed to Start",
+          description: `Could not start AI analysis: ${SecurityUtils.formatSafeErrorMessage(analysisError)}. Please use the retry button.`,
+          variant: "destructive",
+        });
       }
-      
-      onPhotoUploaded(photoRecord);
 
     } catch (error: any) {
       const safeMessage = SecurityUtils.formatSafeErrorMessage(error);
+      console.error('Photo upload error:', error);
       toast({
         title: "Upload Failed",
         description: safeMessage,

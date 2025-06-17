@@ -165,11 +165,8 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
         
         setIsUploading(true);
         try {
-            toast({
-                title: "Processing",
-                description: "Preparing image for upload...",
-            });
-
+            console.log('Starting photo upload process...');
+            
             const blob = await (await fetch(capturedImage)).blob();
             const fileName = `${orderId}/${uuidv4()}.webp`;
 
@@ -177,7 +174,12 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
                 .from('packing-photos')
                 .upload(fileName, blob);
 
-            if (uploadError) throw uploadError;
+            if (uploadError) {
+                console.error('Storage upload error:', uploadError);
+                throw new Error(`Upload failed: ${uploadError.message}`);
+            }
+
+            console.log('File uploaded to storage successfully:', uploadData.path);
 
             const { data: photoRecord, error: insertError } = await supabase
                 .from('packing_photos')
@@ -189,41 +191,66 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
                 .select()
                 .single();
 
-            if (insertError) throw insertError;
+            if (insertError) {
+                console.error('Database insert error:', insertError);
+                // Clean up uploaded file
+                await supabase.storage
+                    .from('packing-photos')
+                    .remove([uploadData.path]);
+                throw new Error(`Database error: ${insertError.message}`);
+            }
+
+            console.log('Photo record created successfully:', photoRecord.id);
 
             toast({ 
                 title: "Upload Successful", 
-                description: "Starting AI analysis... This will take 30-60 seconds." 
+                description: "Photo uploaded. Starting AI analysis..." 
             });
 
-            const invokeAnalysis = async (retryCount = 0): Promise<void> => {
-                try {
-                    const { error } = await supabase.functions.invoke('analyze-image', {
-                        body: { packing_photo_id: photoRecord.id },
-                    });
-                    
-                    if (error) throw error;
-                } catch (error: any) {
-                    if (retryCount < 2) {
-                        console.log(`Analysis invocation failed, retrying... (${retryCount + 1}/3)`);
-                        setTimeout(() => invokeAnalysis(retryCount + 1), 2000 * (retryCount + 1));
-                    } else {
-                        console.error('Analysis invocation failed after 3 attempts:', error);
-                        toast({
-                            title: "Analysis Failed to Start",
-                            description: "You can retry the analysis manually.",
-                            variant: "destructive",
-                        });
-                    }
-                }
-            };
-
-            await invokeAnalysis();
+            // Call onPhotoUploaded immediately
             onPhotoUploaded(photoRecord);
+
+            // Start AI analysis with proper error handling
+            try {
+                console.log('Invoking analyze-image function for photo:', photoRecord.id);
+                
+                const { data: functionData, error: functionError } = await supabase.functions.invoke('analyze-image', {
+                    body: { packing_photo_id: photoRecord.id },
+                });
+
+                if (functionError) {
+                    console.error('Function invocation error:', functionError);
+                    throw new Error(`Analysis failed to start: ${functionError.message}`);
+                }
+
+                console.log('Function invocation successful:', functionData);
+                
+                toast({ 
+                    title: "Analysis Started", 
+                    description: "AI analysis is processing your image. This will take 30-60 seconds." 
+                });
+
+            } catch (analysisError: any) {
+                console.error('AI analysis failed to start:', analysisError);
+                
+                // Update photo status to failed
+                await supabase
+                    .from('packing_photos')
+                    .update({ ai_analysis_status: 'failed' })
+                    .eq('id', photoRecord.id);
+
+                toast({
+                    title: "Analysis Failed to Start",
+                    description: `Could not start AI analysis: ${analysisError.message}. You can retry from the analysis section.`,
+                    variant: "destructive",
+                });
+            }
+
         } catch (error: any) {
+            console.error('Upload process failed:', error);
             toast({
                 title: "Upload Failed",
-                description: error.message,
+                description: error.message || "Failed to upload photo",
                 variant: "destructive",
             });
         } finally {

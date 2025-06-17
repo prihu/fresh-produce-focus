@@ -1,3 +1,4 @@
+
 import { Tables } from "@/integrations/supabase/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -5,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, AlertTriangle, CheckCircle, Clock, Zap, Eye, Leaf } from "lucide-react";
+import { Loader2, AlertTriangle, CheckCircle, Clock, Zap, Eye, Leaf, RefreshCw } from "lucide-react";
 
 type PackingPhoto = Tables<'packing_photos'>;
 
@@ -20,6 +21,22 @@ const PhotoAnalysis = ({ packingPhoto, onStatusUpdate }: PhotoAnalysisProps) => 
     const [progress, setProgress] = useState(0);
     const [estimatedTime, setEstimatedTime] = useState(45);
     const [isOvertime, setIsOvertime] = useState(false);
+    const [timeInPending, setTimeInPending] = useState(0);
+
+    // Calculate time in pending status
+    useEffect(() => {
+        if (packingPhoto.ai_analysis_status === 'pending') {
+            const createdTime = new Date(packingPhoto.created_at).getTime();
+            const currentTime = Date.now();
+            const timeElapsed = Math.floor((currentTime - createdTime) / 1000);
+            setTimeInPending(timeElapsed);
+            
+            // If photo has been pending for more than 5 minutes, it's likely stuck
+            if (timeElapsed > 300) {
+                setIsOvertime(true);
+            }
+        }
+    }, [packingPhoto.ai_analysis_status, packingPhoto.created_at]);
 
     // Enhanced progress simulation for pending analysis
     useEffect(() => {
@@ -84,6 +101,8 @@ const PhotoAnalysis = ({ packingPhoto, onStatusUpdate }: PhotoAnalysisProps) => 
         setIsOvertime(false);
         
         try {
+            console.log('Manually retrying analysis for photo:', packingPhoto.id);
+            
             // Update status to pending immediately for better UX
             const { error: updateError } = await supabase
                 .from('packing_photos')
@@ -91,17 +110,11 @@ const PhotoAnalysis = ({ packingPhoto, onStatusUpdate }: PhotoAnalysisProps) => 
                 .eq('id', packingPhoto.id);
 
             if (updateError) {
-                toast({
-                    title: "Update Failed",
-                    description: "Could not reset analysis status.",
-                    variant: "destructive",
-                });
-                setIsRetrying(false);
-                return;
+                throw new Error(`Failed to reset status: ${updateError.message}`);
             }
             
             // Invoke with optimized settings for faster processing
-            const { error: invokeError } = await supabase.functions.invoke('analyze-image', {
+            const { data: functionData, error: invokeError } = await supabase.functions.invoke('analyze-image', {
                 body: { 
                     packing_photo_id: packingPhoto.id,
                     fast_mode: true // Signal for faster processing
@@ -109,22 +122,28 @@ const PhotoAnalysis = ({ packingPhoto, onStatusUpdate }: PhotoAnalysisProps) => 
             });
 
             if (invokeError) {
-                toast({ 
-                    title: "Retry Failed", 
-                    description: "Could not start analysis function.", 
-                    variant: "destructive" 
-                });
-            } else {
-                toast({ 
-                    title: "Analysis Restarted", 
-                    description: "Using optimized processing for faster results..." 
-                });
+                console.error('Function invocation error during retry:', invokeError);
+                
+                // Update status back to failed
+                await supabase
+                    .from('packing_photos')
+                    .update({ ai_analysis_status: 'failed' })
+                    .eq('id', packingPhoto.id);
+                
+                throw new Error(`Analysis failed to start: ${invokeError.message}`);
             }
-        } catch (error) {
+
+            console.log('Retry function invocation successful:', functionData);
+            
+            toast({ 
+                title: "Analysis Restarted", 
+                description: "Using optimized processing for faster results..." 
+            });
+        } catch (error: any) {
             console.error('Retry failed:', error);
             toast({ 
-                title: "Error", 
-                description: "Failed to restart analysis.", 
+                title: "Retry Failed", 
+                description: error.message || "Failed to restart analysis.", 
                 variant: "destructive" 
             });
         } finally {
@@ -150,8 +169,8 @@ const PhotoAnalysis = ({ packingPhoto, onStatusUpdate }: PhotoAnalysisProps) => 
     const getStatusIcon = () => {
         switch (packingPhoto.ai_analysis_status) {
             case 'pending':
-                return isOvertime ? 
-                    <Clock className="h-4 w-4 text-yellow-600 animate-pulse" /> : 
+                return timeInPending > 300 ? 
+                    <Clock className="h-4 w-4 text-red-600 animate-pulse" /> : 
                     <Loader2 className="h-4 w-4 animate-spin text-purple-600" />;
             case 'completed':
                 return <CheckCircle className="h-4 w-4 text-green-600" />;
@@ -168,6 +187,8 @@ const PhotoAnalysis = ({ packingPhoto, onStatusUpdate }: PhotoAnalysisProps) => 
                 return 'default';
             case 'failed':
                 return 'destructive';
+            case 'pending':
+                return timeInPending > 300 ? 'destructive' : 'secondary';
             default:
                 return 'secondary';
         }
@@ -175,6 +196,9 @@ const PhotoAnalysis = ({ packingPhoto, onStatusUpdate }: PhotoAnalysisProps) => 
 
     const getStatusText = () => {
         if (packingPhoto.ai_analysis_status === 'pending') {
+            if (timeInPending > 300) {
+                return 'stuck - retry needed';
+            }
             return isOvertime ? 'processing (extended)' : 'analyzing';
         }
         return packingPhoto.ai_analysis_status;
@@ -190,10 +214,10 @@ const PhotoAnalysis = ({ packingPhoto, onStatusUpdate }: PhotoAnalysisProps) => 
                     <Badge variant={getStatusColor()} className="capitalize">
                         {getStatusText()}
                     </Badge>
-                    {isOvertime && (
-                        <span className="text-xs text-yellow-600 font-medium flex items-center gap-1">
-                            <Zap className="h-3 w-3" />
-                            Extended processing
+                    {timeInPending > 300 && (
+                        <span className="text-xs text-red-600 font-medium flex items-center gap-1">
+                            <AlertTriangle className="h-3 w-3" />
+                            Stuck for {Math.floor(timeInPending / 60)} min
                         </span>
                     )}
                 </div>
@@ -202,9 +226,11 @@ const PhotoAnalysis = ({ packingPhoto, onStatusUpdate }: PhotoAnalysisProps) => 
                     <div className="space-y-3">
                         <div className="flex items-center justify-between text-sm">
                             <span className="font-medium text-gray-700">
-                                {isOvertime ? 'Taking some more time, please wait...' : 'AI analyzing produce quality...'}
+                                {timeInPending > 300 ? 'Analysis appears stuck. Please retry.' : 
+                                 isOvertime ? 'Taking some more time, please wait...' : 
+                                 'AI analyzing produce quality...'}
                             </span>
-                            {!isOvertime && (
+                            {!isOvertime && timeInPending <= 300 && (
                                 <span className="text-purple-600 font-medium">
                                     ~{estimatedTime}s remaining
                                 </span>
@@ -217,7 +243,14 @@ const PhotoAnalysis = ({ packingPhoto, onStatusUpdate }: PhotoAnalysisProps) => 
                         />
                         
                         <div className="text-xs text-gray-600 space-y-1">
-                            {isOvertime ? (
+                            {timeInPending > 300 ? (
+                                <>
+                                    <p className="font-medium text-red-700">
+                                        ⚠️ Analysis has been stuck for over 5 minutes
+                                    </p>
+                                    <p>This likely means the AI analysis failed to start properly. Please retry.</p>
+                                </>
+                            ) : isOvertime ? (
                                 <>
                                     <p className="font-medium text-yellow-700">
                                         ⏱️ Processing is taking longer than expected
@@ -232,7 +265,7 @@ const PhotoAnalysis = ({ packingPhoto, onStatusUpdate }: PhotoAnalysisProps) => 
                             )}
                         </div>
                         
-                        {isOvertime && (
+                        {(isOvertime || timeInPending > 300) && (
                             <div className="pt-2 border-t border-purple-200">
                                 <Button 
                                     onClick={handleRetry} 
@@ -248,8 +281,8 @@ const PhotoAnalysis = ({ packingPhoto, onStatusUpdate }: PhotoAnalysisProps) => 
                                         </>
                                     ) : (
                                         <>
-                                            <Zap className="mr-2 h-4 w-4" />
-                                            Restart with Fast Mode
+                                            <RefreshCw className="mr-2 h-4 w-4" />
+                                            Retry Analysis
                                         </>
                                     )}
                                 </Button>
@@ -346,7 +379,7 @@ const PhotoAnalysis = ({ packingPhoto, onStatusUpdate }: PhotoAnalysisProps) => 
                             ❌ Analysis failed
                         </p>
                         <p className="text-xs text-red-600">
-                            This could be due to image quality, network issues, or temporary service problems.
+                            This could be due to AI service issues, network problems, or invalid image format.
                         </p>
                         <Button 
                             onClick={handleRetry} 
@@ -362,7 +395,7 @@ const PhotoAnalysis = ({ packingPhoto, onStatusUpdate }: PhotoAnalysisProps) => 
                                 </>
                             ) : (
                                 <>
-                                    <Zap className="mr-2 h-4 w-4" />
+                                    <RefreshCw className="mr-2 h-4 w-4" />
                                     Retry Analysis
                                 </>
                             )}
