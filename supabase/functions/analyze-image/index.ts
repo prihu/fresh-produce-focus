@@ -13,6 +13,9 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  let requestBody: any = null;
+  let packing_photo_id: string | null = null;
+
   try {
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
@@ -25,8 +28,11 @@ serve(async (req) => {
       throw new Error('OpenAI API key not configured')
     }
 
-    // Parse request body
-    const { packing_photo_id, fast_mode = false } = await req.json()
+    // Parse request body ONCE and store it
+    console.log('Parsing request body...')
+    requestBody = await req.json()
+    const { fast_mode = false } = requestBody
+    packing_photo_id = requestBody.packing_photo_id
     
     if (!packing_photo_id) {
       throw new Error('Missing packing_photo_id')
@@ -35,6 +41,7 @@ serve(async (req) => {
     console.log(`Starting analysis for photo: ${packing_photo_id}`)
 
     // Get photo data
+    console.log('Fetching photo data from database...')
     const { data: photo, error: fetchError } = await supabase
       .from('packing_photos')
       .select('*')
@@ -45,6 +52,7 @@ serve(async (req) => {
       throw new Error(`Photo not found: ${fetchError?.message}`)
     }
 
+    console.log('Photo found, updating status to pending...')
     // Update status to pending
     await supabase
       .from('packing_photos')
@@ -52,6 +60,7 @@ serve(async (req) => {
       .eq('id', packing_photo_id)
 
     // Get the image from storage
+    console.log(`Downloading image from storage: ${photo.storage_path}`)
     const { data: imageData, error: downloadError } = await supabase.storage
       .from('packing-photos')
       .download(photo.storage_path)
@@ -60,6 +69,7 @@ serve(async (req) => {
       throw new Error(`Failed to download image: ${downloadError?.message}`)
     }
 
+    console.log('Image downloaded successfully, converting to base64...')
     // Convert to base64
     const arrayBuffer = await imageData.arrayBuffer()
     const base64Image = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
@@ -111,15 +121,21 @@ Respond in this EXACT JSON format:
 
     console.log('Calling OpenAI API...')
     
-    // Call OpenAI API
+    // Call OpenAI API with timeout
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
+    
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${openaiApiKey}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(openaiPayload)
+      body: JSON.stringify(openaiPayload),
+      signal: controller.signal
     })
+
+    clearTimeout(timeoutId)
 
     if (!openaiResponse.ok) {
       const errorText = await openaiResponse.text()
@@ -127,12 +143,13 @@ Respond in this EXACT JSON format:
     }
 
     const openaiResult = await openaiResponse.json()
-    console.log('OpenAI response received')
+    console.log('OpenAI response received successfully')
 
     // Parse the response
     let analysisResult
     try {
       const content = openaiResult.choices[0].message.content
+      console.log('OpenAI raw response:', content)
       
       // Try to extract JSON from the response
       const jsonMatch = content.match(/\{[\s\S]*\}/)
@@ -175,61 +192,25 @@ Respond in this EXACT JSON format:
 
     console.log('Sanitized analysis result:', sanitizedResult)
 
-    // Save results to database with improved error handling
-    try {
-      const { error: updateError } = await supabase
-        .from('packing_photos')
-        .update({
-          item_name: sanitizedResult.item_name,
-          freshness_score: sanitizedResult.freshness_score,
-          quality_score: sanitizedResult.quality_score,
-          description: sanitizedResult.description,
-          ai_analysis_status: 'completed'
-        })
-        .eq('id', packing_photo_id)
+    // Save results to database
+    console.log('Saving analysis results to database...')
+    const { error: updateError } = await supabase
+      .from('packing_photos')
+      .update({
+        item_name: sanitizedResult.item_name,
+        freshness_score: sanitizedResult.freshness_score,
+        quality_score: sanitizedResult.quality_score,
+        description: sanitizedResult.description,
+        ai_analysis_status: 'completed'
+      })
+      .eq('id', packing_photo_id)
 
-      if (updateError) {
-        console.error('Database update error:', updateError)
-        
-        // Handle specific constraint violations gracefully
-        if (updateError.code === '23514') { // Check constraint violation
-          console.log('Constraint violation detected, attempting fallback save...')
-          
-          // Fallback: Save with minimal data to prevent total failure
-          const { error: fallbackError } = await supabase
-            .from('packing_photos')
-            .update({
-              item_name: 'Analysis Error',
-              freshness_score: null,
-              quality_score: null,
-              description: `Analysis completed but failed to save: ${updateError.message}`,
-              ai_analysis_status: 'completed'
-            })
-            .eq('id', packing_photo_id)
-          
-          if (fallbackError) {
-            throw new Error(`Failed to save analysis results: ${fallbackError.message}`)
-          }
-          
-          console.log('Fallback save successful')
-        } else {
-          throw new Error(`Failed to save analysis results: ${updateError.message}`)
-        }
-      } else {
-        console.log('Analysis results saved successfully')
-      }
-
-    } catch (dbError) {
-      console.error('Database operation failed:', dbError)
-      
-      // Mark as failed if we can't save
-      await supabase
-        .from('packing_photos')
-        .update({ ai_analysis_status: 'failed' })
-        .eq('id', packing_photo_id)
-      
-      throw new Error(`Failed to save analysis results`)
+    if (updateError) {
+      console.error('Database update error:', updateError)
+      throw new Error(`Failed to save analysis results: ${updateError.message}`)
     }
+
+    console.log('Analysis results saved successfully')
 
     return new Response(
       JSON.stringify({ 
@@ -247,20 +228,21 @@ Respond in this EXACT JSON format:
     console.error('Analysis function error:', error)
     
     // Try to mark the photo as failed if we have the ID
-    try {
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-      const supabase = createClient(supabaseUrl, supabaseServiceKey)
-      
-      const body = await req.json().catch(() => ({}))
-      if (body.packing_photo_id) {
+    if (packing_photo_id) {
+      try {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+        const supabase = createClient(supabaseUrl, supabaseServiceKey)
+        
         await supabase
           .from('packing_photos')
           .update({ ai_analysis_status: 'failed' })
-          .eq('id', body.packing_photo_id)
+          .eq('id', packing_photo_id)
+        
+        console.log('Updated photo status to failed')
+      } catch (cleanup_error) {
+        console.error('Failed to update status to failed:', cleanup_error)
       }
-    } catch (cleanup_error) {
-      console.error('Failed to update status to failed:', cleanup_error)
     }
 
     return new Response(
