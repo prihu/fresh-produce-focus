@@ -1,4 +1,3 @@
-
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables } from "@/integrations/supabase/types";
@@ -68,15 +67,16 @@ const PackingWorkflow = ({ orderId }: { orderId: string }) => {
         }
     }, [initialPackingPhoto]);
 
-    // Enhanced real-time subscription with better error handling
+    // Enhanced real-time subscription with better error handling and unique channel names
     const setupRealtimeSubscription = useCallback(() => {
         if (!packingPhoto?.id) return;
 
-        console.log('Setting up real-time subscription for photo:', packingPhoto.id);
+        const channelName = `packing_photo_${packingPhoto.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        console.log('Setting up real-time subscription for photo:', packingPhoto.id, 'Channel:', channelName);
         setConnectionStatus('connecting');
 
         const channel = supabase
-            .channel(`packing_photo_update:${packingPhoto.id}:${Date.now()}`) // Unique channel name
+            .channel(channelName)
             .on<PackingPhoto>(
                 'postgres_changes',
                 { 
@@ -89,7 +89,7 @@ const PackingWorkflow = ({ orderId }: { orderId: string }) => {
                     console.log('Real-time update received:', payload.new);
                     setPackingPhoto(payload.new as PackingPhoto);
                     setConnectionStatus('connected');
-                    setRetryCount(0); // Reset retry count on successful update
+                    setRetryCount(0);
                     
                     // Show success toast for status changes
                     if (payload.new.ai_analysis_status === 'completed') {
@@ -107,25 +107,25 @@ const PackingWorkflow = ({ orderId }: { orderId: string }) => {
                 }
             )
             .subscribe((status) => {
-                console.log('Subscription status:', status);
+                console.log('Subscription status:', status, 'for channel:', channelName);
                 if (status === 'SUBSCRIBED') {
                     setConnectionStatus('connected');
                 } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
                     setConnectionStatus('disconnected');
                     console.error('Real-time subscription error:', status);
                     
-                    // Retry connection after delay
+                    // Retry connection with exponential backoff
                     if (retryCount < 3) {
+                        const delay = Math.pow(2, retryCount) * 1000;
                         setTimeout(() => {
                             setRetryCount(prev => prev + 1);
-                            setupRealtimeSubscription();
-                        }, Math.pow(2, retryCount) * 1000); // Exponential backoff
+                        }, delay);
                     }
                 }
             });
 
         return () => {
-            console.log('Cleaning up real-time subscription');
+            console.log('Cleaning up real-time subscription for channel:', channelName);
             supabase.removeChannel(channel);
         };
     }, [packingPhoto?.id, retryCount, toast]);
@@ -135,7 +135,7 @@ const PackingWorkflow = ({ orderId }: { orderId: string }) => {
         return cleanup;
     }, [setupRealtimeSubscription]);
 
-    // Backup polling mechanism when real-time fails
+    // Enhanced backup polling with better error handling
     useEffect(() => {
         if (connectionStatus === 'disconnected' && packingPhoto?.ai_analysis_status === 'pending') {
             console.log('Real-time disconnected, falling back to polling');
@@ -167,7 +167,7 @@ const PackingWorkflow = ({ orderId }: { orderId: string }) => {
                 } catch (error) {
                     console.error('Polling failed:', error);
                 }
-            }, 2000); // Poll every 2 seconds when disconnected
+            }, 3000); // Poll every 3 seconds when disconnected
 
             return () => clearInterval(pollInterval);
         }
@@ -176,7 +176,7 @@ const PackingWorkflow = ({ orderId }: { orderId: string }) => {
     const handlePhotoUploaded = (photo: PackingPhoto) => {
         console.log('Photo uploaded:', photo);
         setPackingPhoto(photo);
-        setRetryCount(0); // Reset retry count for new photo
+        setRetryCount(0);
     };
 
     const handlePhotoDeleted = () => {
@@ -205,10 +205,10 @@ const PackingWorkflow = ({ orderId }: { orderId: string }) => {
 
     return (
         <div className="space-y-6">
-            {/* Debug info for development */}
+            {/* Enhanced debug info for development */}
             {process.env.NODE_ENV === 'development' && (
                 <div className="text-xs text-gray-500 p-2 bg-gray-50 rounded">
-                    Connection: {connectionStatus} | Retries: {retryCount} | Photo Status: {packingPhoto?.ai_analysis_status || 'none'}
+                    Connection: {connectionStatus} | Retries: {retryCount} | Photo Status: {packingPhoto?.ai_analysis_status || 'none'} | Photo ID: {packingPhoto?.id || 'none'}
                 </div>
             )}
             

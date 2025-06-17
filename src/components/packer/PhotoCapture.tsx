@@ -2,11 +2,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Tables } from '@/integrations/supabase/types';
-import { supabase } from '@/integrations/supabase/client';
+import { useSecurePhotoUpload } from '@/hooks/useSecurePhotoUpload';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Camera, RefreshCw, Check, Loader2, AlertTriangle, Upload } from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid';
 import { SecurityUtils } from '@/utils/security';
 
 type PackingPhoto = Tables<'packing_photos'>;
@@ -19,6 +18,7 @@ interface PhotoCaptureProps {
 
 const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps) => {
     const { toast } = useToast();
+    const { uploadPhoto, isUploading } = useSecurePhotoUpload({ orderId, productId, onPhotoUploaded });
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -26,7 +26,6 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
     const [stream, setStream] = useState<MediaStream | null>(null);
     const [capturedImage, setCapturedImage] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
-    const [isUploading, setIsUploading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [uploadMethod, setUploadMethod] = useState<'camera' | 'file'>('camera');
 
@@ -163,98 +162,15 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
     const handleUpload = async () => {
         if (!capturedImage) return;
         
-        setIsUploading(true);
         try {
-            console.log('Starting photo upload process...');
-            
-            const blob = await (await fetch(capturedImage)).blob();
-            const fileName = `${orderId}/${uuidv4()}.webp`;
-
-            const { data: uploadData, error: uploadError } = await supabase.storage
-                .from('packing-photos')
-                .upload(fileName, blob);
-
-            if (uploadError) {
-                console.error('Storage upload error:', uploadError);
-                throw new Error(`Upload failed: ${uploadError.message}`);
-            }
-
-            console.log('File uploaded to storage successfully:', uploadData.path);
-
-            const { data: photoRecord, error: insertError } = await supabase
-                .from('packing_photos')
-                .insert({
-                    order_id: orderId,
-                    product_id: productId,
-                    storage_path: uploadData.path,
-                })
-                .select()
-                .single();
-
-            if (insertError) {
-                console.error('Database insert error:', insertError);
-                // Clean up uploaded file
-                await supabase.storage
-                    .from('packing-photos')
-                    .remove([uploadData.path]);
-                throw new Error(`Database error: ${insertError.message}`);
-            }
-
-            console.log('Photo record created successfully:', photoRecord.id);
-
-            toast({ 
-                title: "Upload Successful", 
-                description: "Photo uploaded. Starting AI analysis..." 
-            });
-
-            // Call onPhotoUploaded immediately
-            onPhotoUploaded(photoRecord);
-
-            // Start AI analysis with proper error handling
-            try {
-                console.log('Invoking analyze-image function for photo:', photoRecord.id);
-                
-                const { data: functionData, error: functionError } = await supabase.functions.invoke('analyze-image', {
-                    body: { packing_photo_id: photoRecord.id },
-                });
-
-                if (functionError) {
-                    console.error('Function invocation error:', functionError);
-                    throw new Error(`Analysis failed to start: ${functionError.message}`);
-                }
-
-                console.log('Function invocation successful:', functionData);
-                
-                toast({ 
-                    title: "Analysis Started", 
-                    description: "AI analysis is processing your image. This will take 30-60 seconds." 
-                });
-
-            } catch (analysisError: any) {
-                console.error('AI analysis failed to start:', analysisError);
-                
-                // Update photo status to failed
-                await supabase
-                    .from('packing_photos')
-                    .update({ ai_analysis_status: 'failed' })
-                    .eq('id', photoRecord.id);
-
-                toast({
-                    title: "Analysis Failed to Start",
-                    description: `Could not start AI analysis: ${analysisError.message}. You can retry from the analysis section.`,
-                    variant: "destructive",
-                });
-            }
-
+            await uploadPhoto(capturedImage);
         } catch (error: any) {
-            console.error('Upload process failed:', error);
+            console.error('Upload failed:', error);
             toast({
                 title: "Upload Failed",
                 description: error.message || "Failed to upload photo",
                 variant: "destructive",
             });
-        } finally {
-            setIsUploading(false);
         }
     };
     

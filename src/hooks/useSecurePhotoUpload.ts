@@ -20,6 +20,55 @@ export const useSecurePhotoUpload = ({ orderId, productId, onPhotoUploaded }: Us
   const { user, canAccessOrder } = useSecureAuth();
   const [isUploading, setIsUploading] = useState(false);
 
+  const triggerAnalysisWithRetry = async (photoId: string, maxRetries = 3) => {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        console.log(`Analysis attempt ${attempt + 1} for photo:`, photoId);
+        
+        const { data: functionData, error: functionError } = await supabase.functions.invoke('analyze-image', {
+          body: { packing_photo_id: photoId },
+          headers: {
+            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          }
+        });
+
+        if (functionError) {
+          throw new Error(functionError.message);
+        }
+
+        console.log('Function invocation successful:', functionData);
+        
+        toast({ 
+          title: "Analysis Started", 
+          description: "AI analysis is processing your image. This will take 30-60 seconds." 
+        });
+        
+        return; // Success, exit retry loop
+        
+      } catch (analysisError: any) {
+        console.error(`Analysis attempt ${attempt + 1} failed:`, analysisError);
+        
+        if (attempt === maxRetries - 1) {
+          // Final attempt failed, update photo status
+          await supabase
+            .from('packing_photos')
+            .update({ ai_analysis_status: 'failed' })
+            .eq('id', photoId);
+
+          toast({
+            title: "Analysis Failed",
+            description: `Could not start AI analysis after ${maxRetries} attempts. Please use the retry button.`,
+            variant: "destructive",
+          });
+        } else {
+          // Wait before next retry with exponential backoff
+          const delay = Math.pow(2, attempt) * 1000;
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+  };
+
   const uploadPhoto = async (image: string) => {
     if (!image || !user) {
       toast({
@@ -108,41 +157,8 @@ export const useSecurePhotoUpload = ({ orderId, productId, onPhotoUploaded }: Us
       // Call onPhotoUploaded immediately after successful upload
       onPhotoUploaded(photoRecord);
 
-      // Trigger AI analysis with proper error handling
-      try {
-        console.log('Invoking analyze-image function for photo:', photoRecord.id);
-        
-        const { data: functionData, error: functionError } = await supabase.functions.invoke('analyze-image', {
-          body: { packing_photo_id: photoRecord.id },
-        });
-
-        if (functionError) {
-          console.error('Function invocation error:', functionError);
-          throw new Error(`Analysis failed to start: ${functionError.message}`);
-        }
-
-        console.log('Function invocation successful:', functionData);
-        
-        toast({ 
-          title: "Analysis Started", 
-          description: "AI analysis is now processing your image. This may take 30-60 seconds." 
-        });
-
-      } catch (analysisError: any) {
-        console.error('AI analysis invocation failed:', analysisError);
-        
-        // Update photo status to failed since we couldn't start analysis
-        await supabase
-          .from('packing_photos')
-          .update({ ai_analysis_status: 'failed' })
-          .eq('id', photoRecord.id);
-
-        toast({
-          title: "Analysis Failed to Start",
-          description: `Could not start AI analysis: ${SecurityUtils.formatSafeErrorMessage(analysisError)}. Please use the retry button.`,
-          variant: "destructive",
-        });
-      }
+      // Trigger AI analysis with retry logic
+      await triggerAnalysisWithRetry(photoRecord.id);
 
     } catch (error: any) {
       const safeMessage = SecurityUtils.formatSafeErrorMessage(error);

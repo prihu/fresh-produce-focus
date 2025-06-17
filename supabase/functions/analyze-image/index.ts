@@ -7,20 +7,68 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Global Supabase client instance for reuse
+let supabaseClient: any = null;
+
+const getSupabaseClient = () => {
+  if (!supabaseClient) {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    supabaseClient = createClient(supabaseUrl, supabaseServiceKey)
+  }
+  return supabaseClient;
+}
+
+// Helper function to convert blob to base64 in chunks to prevent stack overflow
+const convertBlobToBase64Chunked = async (blob: Blob): Promise<string> => {
+  const arrayBuffer = await blob.arrayBuffer();
+  const uint8Array = new Uint8Array(arrayBuffer);
+  const chunkSize = 8192; // 8KB chunks
+  let result = '';
+  
+  for (let i = 0; i < uint8Array.length; i += chunkSize) {
+    const chunk = uint8Array.slice(i, i + chunkSize);
+    result += btoa(String.fromCharCode.apply(null, Array.from(chunk)));
+  }
+  
+  return result;
+}
+
+// Helper function for exponential backoff retry
+const retryWithBackoff = async (fn: () => Promise<any>, maxRetries = 3, baseDelay = 1000) => {
+  let lastError;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (attempt === maxRetries - 1) break;
+      
+      const delay = baseDelay * Math.pow(2, attempt);
+      console.log(`Attempt ${attempt + 1} failed, retrying in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  
+  throw lastError;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  const correlationId = crypto.randomUUID();
   let requestBody: any = null;
   let packing_photo_id: string | null = null;
 
   try {
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    console.log(`[${correlationId}] Starting analysis request`);
+    
+    // Initialize Supabase client (reuse existing instance)
+    const supabase = getSupabaseClient();
 
     // Get OpenAI API key
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY')
@@ -29,8 +77,13 @@ serve(async (req) => {
     }
 
     // Parse request body ONCE and store it
-    console.log('Parsing request body...')
-    requestBody = await req.json()
+    console.log(`[${correlationId}] Parsing request body...`)
+    try {
+      requestBody = await req.json()
+    } catch (parseError) {
+      throw new Error(`Invalid JSON in request body: ${parseError.message}`)
+    }
+    
     const { fast_mode = false } = requestBody
     packing_photo_id = requestBody.packing_photo_id
     
@@ -38,41 +91,57 @@ serve(async (req) => {
       throw new Error('Missing packing_photo_id')
     }
 
-    console.log(`Starting analysis for photo: ${packing_photo_id}`)
+    console.log(`[${correlationId}] Starting analysis for photo: ${packing_photo_id}`)
 
-    // Get photo data
-    console.log('Fetching photo data from database...')
-    const { data: photo, error: fetchError } = await supabase
-      .from('packing_photos')
-      .select('*')
-      .eq('id', packing_photo_id)
-      .single()
+    // Get photo data with retry
+    console.log(`[${correlationId}] Fetching photo data from database...`)
+    const photo = await retryWithBackoff(async () => {
+      const { data, error } = await supabase
+        .from('packing_photos')
+        .select('*')
+        .eq('id', packing_photo_id)
+        .single()
 
-    if (fetchError || !photo) {
-      throw new Error(`Photo not found: ${fetchError?.message}`)
+      if (error || !data) {
+        throw new Error(`Photo not found: ${error?.message || 'No data returned'}`)
+      }
+      return data;
+    });
+
+    console.log(`[${correlationId}] Photo found, updating status to pending...`)
+    
+    // Update status to pending with retry
+    await retryWithBackoff(async () => {
+      const { error } = await supabase
+        .from('packing_photos')
+        .update({ ai_analysis_status: 'pending' })
+        .eq('id', packing_photo_id)
+      
+      if (error) throw error;
+    });
+
+    // Get the image from storage with retry
+    console.log(`[${correlationId}] Downloading image from storage: ${photo.storage_path}`)
+    const imageData = await retryWithBackoff(async () => {
+      const { data, error } = await supabase.storage
+        .from('packing-photos')
+        .download(photo.storage_path)
+
+      if (error || !data) {
+        throw new Error(`Failed to download image: ${error?.message || 'No data returned'}`)
+      }
+      return data;
+    });
+
+    console.log(`[${correlationId}] Image downloaded successfully, converting to base64...`)
+    
+    // Convert to base64 using chunked approach to prevent stack overflow
+    let base64Image: string;
+    try {
+      base64Image = await convertBlobToBase64Chunked(imageData);
+    } catch (conversionError) {
+      throw new Error(`Failed to convert image to base64: ${conversionError.message}`);
     }
-
-    console.log('Photo found, updating status to pending...')
-    // Update status to pending
-    await supabase
-      .from('packing_photos')
-      .update({ ai_analysis_status: 'pending' })
-      .eq('id', packing_photo_id)
-
-    // Get the image from storage
-    console.log(`Downloading image from storage: ${photo.storage_path}`)
-    const { data: imageData, error: downloadError } = await supabase.storage
-      .from('packing-photos')
-      .download(photo.storage_path)
-
-    if (downloadError || !imageData) {
-      throw new Error(`Failed to download image: ${downloadError?.message}`)
-    }
-
-    console.log('Image downloaded successfully, converting to base64...')
-    // Convert to base64
-    const arrayBuffer = await imageData.arrayBuffer()
-    const base64Image = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
 
     // Prepare OpenAI request with improved prompt
     const openaiPayload = {
@@ -119,37 +188,45 @@ Respond in this EXACT JSON format:
       temperature: 0.1
     }
 
-    console.log('Calling OpenAI API...')
+    console.log(`[${correlationId}] Calling OpenAI API...`)
     
-    // Call OpenAI API with timeout
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
-    
-    const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(openaiPayload),
-      signal: controller.signal
-    })
+    // Call OpenAI API with timeout and retry
+    const openaiResult = await retryWithBackoff(async () => {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 second timeout
+      
+      try {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${openaiApiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(openaiPayload),
+          signal: controller.signal
+        })
 
-    clearTimeout(timeoutId)
+        clearTimeout(timeoutId)
 
-    if (!openaiResponse.ok) {
-      const errorText = await openaiResponse.text()
-      throw new Error(`OpenAI API error: ${openaiResponse.status} ${errorText}`)
-    }
+        if (!response.ok) {
+          const errorText = await response.text()
+          throw new Error(`OpenAI API error: ${response.status} ${errorText}`)
+        }
 
-    const openaiResult = await openaiResponse.json()
-    console.log('OpenAI response received successfully')
+        return await response.json()
+      } catch (fetchError) {
+        clearTimeout(timeoutId)
+        throw fetchError;
+      }
+    }, 2, 2000); // 2 retries with 2s base delay
+
+    console.log(`[${correlationId}] OpenAI response received successfully`)
 
     // Parse the response
     let analysisResult
     try {
       const content = openaiResult.choices[0].message.content
-      console.log('OpenAI raw response:', content)
+      console.log(`[${correlationId}] OpenAI raw response:`, content)
       
       // Try to extract JSON from the response
       const jsonMatch = content.match(/\{[\s\S]*\}/)
@@ -159,7 +236,7 @@ Respond in this EXACT JSON format:
         throw new Error('No JSON found in response')
       }
     } catch (parseError) {
-      console.error('Failed to parse OpenAI response:', parseError)
+      console.error(`[${correlationId}] Failed to parse OpenAI response:`, parseError)
       throw new Error(`Failed to parse AI response: ${parseError.message}`)
     }
 
@@ -190,33 +267,35 @@ Respond in this EXACT JSON format:
       }
     }
 
-    console.log('Sanitized analysis result:', sanitizedResult)
+    console.log(`[${correlationId}] Sanitized analysis result:`, sanitizedResult)
 
-    // Save results to database
-    console.log('Saving analysis results to database...')
-    const { error: updateError } = await supabase
-      .from('packing_photos')
-      .update({
-        item_name: sanitizedResult.item_name,
-        freshness_score: sanitizedResult.freshness_score,
-        quality_score: sanitizedResult.quality_score,
-        description: sanitizedResult.description,
-        ai_analysis_status: 'completed'
-      })
-      .eq('id', packing_photo_id)
+    // Save results to database with retry
+    console.log(`[${correlationId}] Saving analysis results to database...`)
+    await retryWithBackoff(async () => {
+      const { error } = await supabase
+        .from('packing_photos')
+        .update({
+          item_name: sanitizedResult.item_name,
+          freshness_score: sanitizedResult.freshness_score,
+          quality_score: sanitizedResult.quality_score,
+          description: sanitizedResult.description,
+          ai_analysis_status: 'completed'
+        })
+        .eq('id', packing_photo_id)
 
-    if (updateError) {
-      console.error('Database update error:', updateError)
-      throw new Error(`Failed to save analysis results: ${updateError.message}`)
-    }
+      if (error) {
+        throw new Error(`Failed to save analysis results: ${error.message}`)
+      }
+    });
 
-    console.log('Analysis results saved successfully')
+    console.log(`[${correlationId}] Analysis results saved successfully`)
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         analysis: sanitizedResult,
-        message: 'Analysis completed successfully'
+        message: 'Analysis completed successfully',
+        correlation_id: correlationId
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -225,30 +304,29 @@ Respond in this EXACT JSON format:
     )
 
   } catch (error: any) {
-    console.error('Analysis function error:', error)
+    console.error(`[${correlationId}] Analysis function error:`, error)
     
     // Try to mark the photo as failed if we have the ID
     if (packing_photo_id) {
       try {
-        const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-        const supabase = createClient(supabaseUrl, supabaseServiceKey)
+        const supabase = getSupabaseClient();
         
         await supabase
           .from('packing_photos')
           .update({ ai_analysis_status: 'failed' })
           .eq('id', packing_photo_id)
         
-        console.log('Updated photo status to failed')
+        console.log(`[${correlationId}] Updated photo status to failed`)
       } catch (cleanup_error) {
-        console.error('Failed to update status to failed:', cleanup_error)
+        console.error(`[${correlationId}] Failed to update status to failed:`, cleanup_error)
       }
     }
 
     return new Response(
       JSON.stringify({ 
         error: error.message || 'Analysis failed',
-        success: false 
+        success: false,
+        correlation_id: correlationId
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
