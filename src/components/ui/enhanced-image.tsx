@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback } from 'react';
-import { ImageIcon, RefreshCw } from 'lucide-react';
+import { ImageIcon, RefreshCw, AlertTriangle } from 'lucide-react';
 import { Button } from './button';
 import { useImageUrl } from '@/hooks/useImageUrl';
 
@@ -49,8 +49,9 @@ const EnhancedImage: React.FC<EnhancedImageProps> = ({
     return (
       <div className={`bg-gray-100 rounded border border-gray-200 flex items-center justify-center ${fallbackClassName}`}>
         <div className="text-center text-gray-500">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-400 mx-auto mb-2"></div>
-          <p className="text-xs">Loading...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400 mx-auto mb-2"></div>
+          <p className="text-sm">Loading image...</p>
+          <p className="text-xs text-gray-400 mt-1">Using secure access</p>
         </div>
       </div>
     );
@@ -59,16 +60,19 @@ const EnhancedImage: React.FC<EnhancedImageProps> = ({
   // Show error state with retry option
   if (error || imageLoadError || !imageUrl) {
     return (
-      <div className={`bg-gray-100 rounded border border-gray-200 flex flex-col items-center justify-center p-2 ${fallbackClassName}`}>
-        <ImageIcon className="h-6 w-6 text-gray-400 mb-2" />
-        <p className="text-xs text-gray-500 text-center mb-2">
-          {error || 'Image failed to load'}
+      <div className={`bg-gray-100 rounded border border-gray-200 flex flex-col items-center justify-center p-4 ${fallbackClassName}`}>
+        <AlertTriangle className="h-8 w-8 text-red-400 mb-2" />
+        <p className="text-sm text-gray-700 text-center mb-2 font-medium">
+          Image Access Error
+        </p>
+        <p className="text-xs text-gray-500 text-center mb-3">
+          {error || 'Failed to load image with secure access'}
         </p>
         <Button
           variant="outline"
           size="sm"
           onClick={handleRetry}
-          className="text-xs px-2 py-1 h-auto"
+          className="text-xs px-3 py-1 h-auto"
         >
           <RefreshCw className="h-3 w-3 mr-1" />
           Retry

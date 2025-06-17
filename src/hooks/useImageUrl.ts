@@ -18,65 +18,68 @@ export const useImageUrl = ({
   storagePath, 
   bucket = 'packing-photos' 
 }: UseImageUrlProps): UseImageUrlReturn => {
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
 
-  // Since bucket is now public, we can use getPublicUrl directly
-  const imageUrl = useMemo(() => {
+  useEffect(() => {
     if (!storagePath) {
       console.log('useImageUrl: No storage path provided');
-      return null;
+      setImageUrl(null);
+      setIsLoading(false);
+      setError(null);
+      return;
     }
 
-    try {
-      const { data } = supabase.storage
-        .from(bucket)
-        .getPublicUrl(storagePath);
-      
-      const url = data.publicUrl;
-      console.log('useImageUrl: Generated public URL for', storagePath, ':', url);
-      return url;
-    } catch (error) {
-      console.error('useImageUrl: Error generating public URL for', storagePath, ':', error);
-      setError('Failed to generate image URL');
-      return null;
-    }
-  }, [storagePath, bucket, retryCount]);
+    const fetchSignedUrl = async () => {
+      setIsLoading(true);
+      setError(null);
 
-  // Test URL accessibility when it changes
-  useEffect(() => {
-    if (!imageUrl) return;
-
-    setIsLoading(true);
-    setError(null);
-
-    const testImageAccess = async () => {
       try {
-        const response = await fetch(imageUrl, { 
+        console.log('useImageUrl: Fetching signed URL for', storagePath);
+        
+        // Create signed URL with 1 hour expiry
+        const { data, error: signedUrlError } = await supabase.storage
+          .from(bucket)
+          .createSignedUrl(storagePath, 3600); // 1 hour validity
+
+        if (signedUrlError) {
+          throw new Error(`Failed to create signed URL: ${signedUrlError.message}`);
+        }
+
+        if (!data?.signedUrl) {
+          throw new Error('No signed URL returned');
+        }
+
+        console.log('useImageUrl: Successfully created signed URL for', storagePath);
+        setImageUrl(data.signedUrl);
+        setError(null);
+
+        // Test URL accessibility
+        const response = await fetch(data.signedUrl, { 
           method: 'HEAD',
           mode: 'cors'
         });
         
-        console.log('useImageUrl: Accessibility test for', imageUrl, '- Status:', response.status);
-        
         if (!response.ok) {
           throw new Error(`Image not accessible: HTTP ${response.status}`);
         }
-        
-        setError(null);
-      } catch (error) {
-        console.error('useImageUrl: Image accessibility test failed:', error);
-        setError(`Image not accessible: ${error instanceof Error ? error.message : 'Unknown error'}`);
+
+      } catch (error: any) {
+        console.error('useImageUrl: Error fetching signed URL for', storagePath, ':', error);
+        setError(`Failed to load image: ${error.message}`);
+        setImageUrl(null);
       } finally {
         setIsLoading(false);
       }
     };
 
-    testImageAccess();
-  }, [imageUrl]);
+    fetchSignedUrl();
+  }, [storagePath, bucket, retryCount]);
 
   const retry = () => {
+    console.log('useImageUrl: Retrying URL fetch for', storagePath);
     setRetryCount(prev => prev + 1);
     setError(null);
   };

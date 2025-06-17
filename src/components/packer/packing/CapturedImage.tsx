@@ -1,9 +1,9 @@
 
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { Tables } from '@/integrations/supabase/types';
 import { Lock, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
+import EnhancedImage from '@/components/ui/enhanced-image';
 
 type PackingPhoto = Tables<'packing_photos'>;
 
@@ -14,28 +14,6 @@ interface CapturedImageProps {
 }
 
 const CapturedImage = ({ packingPhoto, onPhotoDeleted, disabled }: CapturedImageProps) => {
-    const [imageUrl, setImageUrl] = useState<string | null>(null);
-    const [isUrlLoading, setIsUrlLoading] = useState(false);
-
-    useEffect(() => {
-        if (packingPhoto?.storage_path) {
-            const getSignedUrl = async () => {
-                setIsUrlLoading(true);
-                const { data, error } = await supabase.storage
-                    .from('packing-photos')
-                    .createSignedUrl(packingPhoto.storage_path, 300); // 5 minutes validity
-                if (error) {
-                    console.error("Error creating signed URL:", error);
-                    setImageUrl(null);
-                } else {
-                    setImageUrl(data.signedUrl);
-                }
-                setIsUrlLoading(false);
-            };
-            getSignedUrl();
-        }
-    }, [packingPhoto]);
-
     const handleDelete = async () => {
         if (!onPhotoDeleted || disabled) return;
         
@@ -74,16 +52,13 @@ const CapturedImage = ({ packingPhoto, onPhotoDeleted, disabled }: CapturedImage
                 )}
             </div>
             <div className="p-4 border rounded-lg bg-muted/50 aspect-video flex items-center justify-center">
-                {isUrlLoading ? (
-                    <p>Loading image...</p>
-                ) : imageUrl ? (
-                    <img src={imageUrl} alt="Packed product" className="max-w-full max-h-full rounded-md" />
-                ) : (
-                    <div className="text-muted-foreground flex flex-col items-center gap-2">
-                        <Lock className="h-5 w-5"/>
-                        <span>Image is private.</span>
-                    </div>
-                )}
+                <EnhancedImage
+                    storagePath={packingPhoto.storage_path}
+                    alt="Packed product"
+                    className="max-w-full max-h-full rounded-md object-contain"
+                    fallbackClassName="w-full h-full"
+                    bucket="packing-photos"
+                />
             </div>
         </div>
     );
