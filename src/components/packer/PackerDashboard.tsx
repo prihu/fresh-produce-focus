@@ -25,9 +25,52 @@ const PackerDashboard = () => {
     staleTime: 30000, // Consider data fresh for 30 seconds
   });
 
+  // Function to determine the header text and description based on order states
+  const getHeaderContent = () => {
+    if (!orders || orders.length === 0) {
+      return {
+        title: "No orders found",
+        description: "There are currently no orders in the system."
+      };
+    }
+
+    const pendingOrders = orders.filter(o => o.status !== "packed");
+    const completedOrders = orders.filter(o => o.status === "packed");
+
+    if (pendingOrders.length > 0 && completedOrders.length === 0) {
+      return {
+        title: "Orders waiting to be processed",
+        description: `${pendingOrders.length} order${pendingOrders.length === 1 ? '' : 's'} pending packing.`
+      };
+    }
+
+    if (pendingOrders.length === 0 && completedOrders.length > 0) {
+      return {
+        title: "All orders packed",
+        description: `${completedOrders.length} order${completedOrders.length === 1 ? '' : 's'} completed.`
+      };
+    }
+
+    if (pendingOrders.length > 0 && completedOrders.length > 0) {
+      return {
+        title: "Orders waiting to be processed",
+        description: `${pendingOrders.length} pending, ${completedOrders.length} completed.`
+      };
+    }
+
+    return {
+      title: "Freshness Checker Dashboard",
+      description: "Orders management dashboard."
+    };
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-4">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-4 w-48" />
+        </div>
         <Skeleton className="h-32 w-full" />
         <Skeleton className="h-32 w-full" />
         <Skeleton className="h-32 w-full" />
@@ -46,9 +89,15 @@ const PackerDashboard = () => {
 
   const pendingOrders = orders?.filter(o => o.status !== "packed") || [];
   const completedOrders = orders?.filter(o => o.status === "packed") || [];
+  const headerContent = getHeaderContent();
 
   return (
     <div className="space-y-6">
+      <header className="mb-6 bg-white">
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900">{headerContent.title}</h1>
+        <p className="text-gray-700">{headerContent.description}</p>
+      </header>
+
       <SecureCreateOrderForm />
       
       {isRefetching && (
