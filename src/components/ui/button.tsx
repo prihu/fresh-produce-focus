@@ -6,25 +6,29 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all duration-200 focus-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-target",
   {
     variants: {
       variant: {
-        default: "bg-purple-600 text-white hover:bg-purple-700 shadow-sm",
+        default: "bg-purple-600 text-white hover:bg-purple-700 active:bg-purple-800 shadow-sm hover:shadow-md",
         destructive:
-          "bg-red-600 text-white hover:bg-red-700",
+          "bg-red-600 text-white hover:bg-red-700 active:bg-red-800 shadow-sm hover:shadow-md",
         outline:
-          "border border-gray-300 bg-white text-gray-900 hover:bg-gray-50 hover:text-gray-900",
+          "border border-medium bg-white text-gray-900 hover:bg-gray-50 hover:border-strong active:bg-gray-100",
         secondary:
-          "bg-gray-100 text-gray-900 hover:bg-gray-200",
-        ghost: "text-gray-900 hover:bg-gray-100",
-        link: "text-purple-600 underline-offset-4 hover:underline hover:text-purple-700",
+          "bg-gray-100 text-gray-900 hover:bg-gray-200 active:bg-gray-300",
+        ghost: "text-gray-700 hover:bg-gray-100 hover:text-gray-900 active:bg-gray-200",
+        link: "text-purple-600 underline-offset-4 hover:underline hover:text-purple-700 active:text-purple-800",
+        success: "bg-green-600 text-white hover:bg-green-700 active:bg-green-800 shadow-sm hover:shadow-md",
+        warning: "bg-yellow-500 text-white hover:bg-yellow-600 active:bg-yellow-700 shadow-sm hover:shadow-md",
       },
       size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 rounded-md px-3",
-        lg: "h-11 rounded-md px-8",
-        icon: "h-10 w-10",
+        default: "h-11 px-6 py-3",
+        sm: "h-9 rounded-lg px-4 text-xs",
+        lg: "h-12 rounded-xl px-8 text-base",
+        icon: "h-11 w-11",
+        "icon-sm": "h-9 w-9 rounded-lg",
+        "icon-lg": "h-12 w-12",
       },
     },
     defaultVariants: {
