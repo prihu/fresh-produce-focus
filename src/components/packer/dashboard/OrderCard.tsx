@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
@@ -11,6 +10,7 @@ import EnhancedImage from "@/components/ui/enhanced-image";
 import { useDeleteOrder } from "@/hooks/useDeleteOrder";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ModernSkeleton } from "@/components/ui/modern-skeleton";
+import { cn } from "@/lib/utils";
 
 type Order = Tables<'orders'>;
 type PackingPhoto = Tables<'packing_photos'>;
