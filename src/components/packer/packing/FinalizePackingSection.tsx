@@ -37,6 +37,7 @@ const FinalizePackingSection = ({ order, packingPhoto }: FinalizePackingSectionP
     });
 
     const isPacked = order.status === 'packed';
+    const isQualityChecked = order.status === 'quality_checked';
     const isAnalysisComplete = packingPhoto?.ai_analysis_status === 'completed';
     const isQualityAcceptable = isAnalysisComplete && (packingPhoto?.quality_score ?? 0) >= MIN_QUALITY_SCORE;
     const isFreshnessAcceptable = isAnalysisComplete && (packingPhoto?.freshness_score ?? 0) >= MIN_FRESHNESS_SCORE;
@@ -45,11 +46,21 @@ const FinalizePackingSection = ({ order, packingPhoto }: FinalizePackingSectionP
         !packingPhoto.item_name.toLowerCase().includes('unidentified') &&
         !packingPhoto.item_name.toLowerCase().includes('unclear');
     
-    const canPack = !isPacked && isAnalysisComplete && isQualityAcceptable && isFreshnessAcceptable && isProduceDetected;
+    // Can pack if order is quality_checked OR if it meets all quality requirements
+    const canPack = !isPacked && (isQualityChecked || (isAnalysisComplete && isQualityAcceptable && isFreshnessAcceptable && isProduceDetected));
 
     let helperMessage = null;
     if (!isPacked) {
-        if (!isAnalysisComplete) {
+        if (isQualityChecked) {
+            helperMessage = (
+                <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center gap-2">
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                        <p className="text-sm text-green-700 font-medium">Quality check passed! Ready to pack.</p>
+                    </div>
+                </div>
+            );
+        } else if (!isAnalysisComplete) {
             helperMessage = <p className="text-sm text-gray-700 mt-2">You must capture a photo and wait for analysis to complete before packing.</p>;
         } else {
             const issues = [];

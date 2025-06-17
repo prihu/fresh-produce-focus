@@ -114,6 +114,19 @@ export const useSecurePhotoUpload = ({ orderId, productId, onPhotoUploaded }: Us
         throw new Error('Cannot upload photos for already packed orders');
       }
 
+      // Update order status to 'in_progress' if it's currently 'pending_packing'
+      if (orderData.status === 'pending_packing') {
+        const { error: statusError } = await supabase
+          .from('orders')
+          .update({ status: 'in_progress' })
+          .eq('id', orderId);
+
+        if (statusError) {
+          console.warn('Failed to update order status to in_progress:', statusError);
+          // Continue with upload even if status update fails
+        }
+      }
+
       // Generate secure filename with order validation
       const fileName = `${orderId}/${uuidv4()}.webp`;
 

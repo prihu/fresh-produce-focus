@@ -67,7 +67,7 @@ const PackingWorkflow = ({ orderId }: { orderId: string }) => {
         }
     }, [initialPackingPhoto]);
 
-    // Enhanced real-time subscription with better error handling and unique channel names
+    // Enhanced real-time subscription with better error handling and automatic status management
     const setupRealtimeSubscription = useCallback(() => {
         if (!packingPhoto?.id) return;
 
@@ -85,19 +85,48 @@ const PackingWorkflow = ({ orderId }: { orderId: string }) => {
                     table: 'packing_photos',
                     filter: `id=eq.${packingPhoto.id}`
                 },
-                (payload) => {
+                async (payload) => {
                     console.log('Real-time update received:', payload.new);
-                    setPackingPhoto(payload.new as PackingPhoto);
+                    const updatedPhoto = payload.new as PackingPhoto;
+                    setPackingPhoto(updatedPhoto);
                     setConnectionStatus('connected');
                     setRetryCount(0);
                     
                     // Show success toast for status changes
-                    if (payload.new.ai_analysis_status === 'completed') {
+                    if (updatedPhoto.ai_analysis_status === 'completed') {
                         toast({
                             title: "Analysis Complete!",
                             description: "Quality scores have been generated.",
                         });
-                    } else if (payload.new.ai_analysis_status === 'failed') {
+
+                        // Automatically update order status to 'quality_checked' when analysis completes
+                        // Only if quality and freshness scores are acceptable (>= 6)
+                        const qualityScore = updatedPhoto.quality_score ?? 0;
+                        const freshnessScore = updatedPhoto.freshness_score ?? 0;
+                        const isProduceDetected = updatedPhoto.item_name && 
+                            !updatedPhoto.item_name.toLowerCase().includes('not') &&
+                            !updatedPhoto.item_name.toLowerCase().includes('unidentified') &&
+                            !updatedPhoto.item_name.toLowerCase().includes('unclear');
+
+                        if (qualityScore >= 6 && freshnessScore >= 6 && isProduceDetected) {
+                            try {
+                                const { error: statusError } = await supabase
+                                    .from('orders')
+                                    .update({ status: 'quality_checked' })
+                                    .eq('id', orderId);
+
+                                if (statusError) {
+                                    console.error('Failed to update order status to quality_checked:', statusError);
+                                } else {
+                                    console.log('Order status updated to quality_checked');
+                                    // Invalidate order query to refresh UI
+                                    queryClient.invalidateQueries({ queryKey: ["orderDetails", orderId] });
+                                }
+                            } catch (error) {
+                                console.error('Error updating order status:', error);
+                            }
+                        }
+                    } else if (updatedPhoto.ai_analysis_status === 'failed') {
                         toast({
                             title: "Analysis Failed",
                             description: "Please try uploading the image again.",
@@ -128,7 +157,7 @@ const PackingWorkflow = ({ orderId }: { orderId: string }) => {
             console.log('Cleaning up real-time subscription for channel:', channelName);
             supabase.removeChannel(channel);
         };
-    }, [packingPhoto?.id, retryCount, toast]);
+    }, [packingPhoto?.id, retryCount, toast, orderId, queryClient]);
 
     useEffect(() => {
         const cleanup = setupRealtimeSubscription();
@@ -179,10 +208,28 @@ const PackingWorkflow = ({ orderId }: { orderId: string }) => {
         setRetryCount(0);
     };
 
-    const handlePhotoDeleted = () => {
+    const handlePhotoDeleted = async () => {
         console.log('Photo deleted');
         setPackingPhoto(null);
         setConnectionStatus('connecting');
+
+        // Revert order status to 'pending_packing' when photo is deleted
+        try {
+            const { error: statusError } = await supabase
+                .from('orders')
+                .update({ status: 'pending_packing' })
+                .eq('id', orderId);
+
+            if (statusError) {
+                console.error('Failed to revert order status to pending_packing:', statusError);
+            } else {
+                console.log('Order status reverted to pending_packing');
+                // Invalidate order query to refresh UI
+                queryClient.invalidateQueries({ queryKey: ["orderDetails", orderId] });
+            }
+        } catch (error) {
+            console.error('Error reverting order status:', error);
+        }
     };
 
     const handlePhotoStatusUpdate = (updatedPhoto: PackingPhoto) => {
@@ -208,7 +255,7 @@ const PackingWorkflow = ({ orderId }: { orderId: string }) => {
             {/* Enhanced debug info for development */}
             {process.env.NODE_ENV === 'development' && (
                 <div className="text-xs text-gray-500 p-2 bg-gray-50 rounded">
-                    Connection: {connectionStatus} | Retries: {retryCount} | Photo Status: {packingPhoto?.ai_analysis_status || 'none'} | Photo ID: {packingPhoto?.id || 'none'}
+                    Connection: {connectionStatus} | Retries: {retryCount} | Photo Status: {packingPhoto?.ai_analysis_status || 'none'} | Photo ID: {packingPhoto?.id || 'none'} | Order Status: {order.status}
                 </div>
             )}
             

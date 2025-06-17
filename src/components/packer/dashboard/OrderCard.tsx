@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
@@ -6,8 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tables } from "@/integrations/supabase/types";
-import { Camera, CheckCircle2, Clock, AlertCircle, Star } from "lucide-react";
+import { Camera, CheckCircle2, Clock, AlertCircle, Star, Trash2 } from "lucide-react";
 import EnhancedImage from "@/components/ui/enhanced-image";
+import { useDeleteOrder } from "@/hooks/useDeleteOrder";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 type Order = Tables<'orders'>;
 type PackingPhoto = Tables<'packing_photos'>;
@@ -32,6 +33,14 @@ const OrderCard = ({ order }: OrderCardProps) => {
         queryKey: ["orderPhotos", order.id],
         queryFn: () => fetchOrderPhotos(order.id),
     });
+
+    const { mutate: deleteOrder, isPending: isDeleting } = useDeleteOrder();
+
+    const canDelete = order.manually_created && order.status !== 'packed';
+
+    const handleDelete = () => {
+        deleteOrder(order.id);
+    };
 
     const getAnalysisStatusBadge = () => {
         if (!photos.length) {
@@ -125,8 +134,43 @@ const OrderCard = ({ order }: OrderCardProps) => {
         <Card className="bg-white border-gray-200 shadow-sm hover:shadow-md transition-shadow">
             <CardHeader className="bg-white pb-3">
                 <div className="flex items-start justify-between">
-                    <CardTitle className="text-gray-900">Order #{order.order_number}</CardTitle>
-                    {getAnalysisStatusBadge()}
+                    <div className="flex-1">
+                        <CardTitle className="text-gray-900">Order #{order.order_number}</CardTitle>
+                        {order.manually_created && (
+                            <Badge variant="secondary" className="mt-1 text-xs">Manual</Badge>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {getAnalysisStatusBadge()}
+                        {canDelete && (
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                        disabled={isDeleting}
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Delete Order</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Are you sure you want to delete order #{order.order_number}? This action cannot be undone.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
+                                            Delete
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        )}
+                    </div>
                 </div>
             </CardHeader>
             
