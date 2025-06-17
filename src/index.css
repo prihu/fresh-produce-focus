@@ -50,6 +50,42 @@
     --warning-foreground: 0 0% 100%;
     --info: 221 83% 53%;
     --info-foreground: 0 0% 100%;
+
+    /* Freshness Checker Brand Colors */
+    --fresh-50: 267 100% 99%;
+    --fresh-100: 267 91% 95%;
+    --fresh-200: 267 89% 89%;
+    --fresh-300: 267 91% 81%;
+    --fresh-400: 267 89% 70%;
+    --fresh-500: 262 83% 58%; /* Primary purple */
+    --fresh-600: 258 89% 66%;
+    --fresh-700: 253 91% 57%;
+    --fresh-800: 250 84% 48%;
+    --fresh-900: 250 69% 40%;
+
+    /* Quality green colors */
+    --quality-50: 138 76% 97%;
+    --quality-100: 141 84% 93%;
+    --quality-200: 141 79% 85%;
+    --quality-300: 142 77% 73%;
+    --quality-400: 142 69% 58%;
+    --quality-500: 142 71% 45%; /* Fresh green */
+    --quality-600: 142 76% 36%;
+    --quality-700: 142 72% 29%;
+    --quality-800: 143 64% 24%;
+    --quality-900: 144 61% 20%;
+
+    /* Speed orange colors */
+    --speed-50: 33 100% 96%;
+    --speed-100: 34 100% 92%;
+    --speed-200: 32 98% 83%;
+    --speed-300: 31 97% 72%;
+    --speed-400: 27 96% 61%;
+    --speed-500: 25 95% 53%; /* Speed orange */
+    --speed-600: 21 90% 48%;
+    --speed-700: 17 88% 40%;
+    --speed-800: 15 79% 34%;
+    --speed-900: 15 75% 28%;
   }
 
   .dark {
@@ -135,6 +171,66 @@
   
   .focus-ring-inset {
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-purple-500;
+  }
+}
+
+/* Brand Color System */
+@layer utilities {
+  /* Fresh Purple Brand Colors */
+  .bg-fresh-50 { background-color: hsl(var(--fresh-50)); }
+  .bg-fresh-100 { background-color: hsl(var(--fresh-100)); }
+  .bg-fresh-200 { background-color: hsl(var(--fresh-200)); }
+  .bg-fresh-300 { background-color: hsl(var(--fresh-300)); }
+  .bg-fresh-400 { background-color: hsl(var(--fresh-400)); }
+  .bg-fresh-500 { background-color: hsl(var(--fresh-500)); }
+  .text-fresh-500 { color: hsl(var(--fresh-500)); }
+  .text-fresh-600 { color: hsl(var(--fresh-600)); }
+  .border-fresh-200 { border-color: hsl(var(--fresh-200)); }
+  .border-fresh-300 { border-color: hsl(var(--fresh-300)); }
+
+  /* Quality Green Colors */
+  .bg-quality-50 { background-color: hsl(var(--quality-50)); }
+  .bg-quality-100 { background-color: hsl(var(--quality-100)); }
+  .bg-quality-200 { background-color: hsl(var(--quality-200)); }
+  .text-quality-600 { color: hsl(var(--quality-600)); }
+  .text-quality-700 { color: hsl(var(--quality-700)); }
+  .border-quality-100 { border-color: hsl(var(--quality-100)); }
+  .border-quality-200 { border-color: hsl(var(--quality-200)); }
+  .border-quality-400 { border-color: hsl(var(--quality-400)); }
+
+  /* Speed Orange Colors */
+  .bg-speed-100 { background-color: hsl(var(--speed-100)); }
+  .text-speed-600 { color: hsl(var(--speed-600)); }
+  .text-speed-700 { color: hsl(var(--speed-700)); }
+  .border-speed-100 { border-color: hsl(var(--speed-100)); }
+
+  /* Gradient System */
+  .bg-gradient-primary {
+    background: linear-gradient(135deg, hsl(var(--fresh-500)), hsl(var(--fresh-600)));
+  }
+  
+  .bg-gradient-fresh {
+    background: linear-gradient(135deg, hsl(var(--quality-500)), hsl(var(--quality-600)));
+  }
+
+  .text-gradient {
+    background: linear-gradient(135deg, hsl(var(--fresh-500)), hsl(var(--fresh-600)));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Shadow System */
+  .shadow-fresh {
+    box-shadow: 0 4px 6px -1px rgba(147, 51, 234, 0.1), 0 2px 4px -1px rgba(147, 51, 234, 0.06);
+  }
+  
+  .shadow-fresh-lg {
+    box-shadow: 0 10px 15px -3px rgba(147, 51, 234, 0.1), 0 4px 6px -2px rgba(147, 51, 234, 0.05);
+  }
+
+  .hover\:shadow-fresh:hover {
+    box-shadow: 0 4px 6px -1px rgba(147, 51, 234, 0.1), 0 2px 4px -1px rgba(147, 51, 234, 0.06);
   }
 }
 
@@ -292,11 +388,20 @@
     animation: pulse-subtle 3s ease-in-out infinite;
   }
   
+  /* Fixed animation delay classes */
   .animate-delay-100 {
     animation-delay: 0.1s;
   }
   
   .animate-delay-200 {
+    animation-delay: 0.2s;
+  }
+
+  .animation-delay-100 {
+    animation-delay: 0.1s;
+  }
+  
+  .animation-delay-200 {
     animation-delay: 0.2s;
   }
 }
