@@ -87,6 +87,34 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
         };
     }, [uploadMethod, capturedImage]);
 
+    const validateImageForAnalysis = (canvas: HTMLCanvasElement): boolean => {
+        // Check canvas size
+        if (canvas.width === 0 || canvas.height === 0) {
+            toast({
+                title: "Invalid Image",
+                description: "Image appears to be empty or corrupted.",
+                variant: "destructive",
+            });
+            return false;
+        }
+
+        // Check if image is too large (OpenAI limit is 20MB, but we'll be conservative)
+        const imageData = canvas.toDataURL('image/jpeg', 0.9);
+        const sizeInBytes = (imageData.length * 3) / 4; // Approximate base64 to bytes conversion
+        const maxSize = 15 * 1024 * 1024; // 15MB limit
+
+        if (sizeInBytes > maxSize) {
+            toast({
+                title: "Image Too Large",
+                description: "Please capture a smaller image or reduce quality.",
+                variant: "destructive",
+            });
+            return false;
+        }
+
+        return true;
+    };
+
     const handleCapture = () => {
         if (!videoRef.current || !canvasRef.current) return;
 
@@ -98,6 +126,7 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
 
         cleanupCapturedImage();
 
+        // Optimize dimensions for OpenAI processing
         const maxWidth = 1920;
         const maxHeight = 1080;
         let { videoWidth: width, videoHeight: height } = video;
@@ -112,12 +141,64 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
         canvas.height = height;
         ctx.drawImage(video, 0, 0, width, height);
 
-        const imageData = canvas.toDataURL('image/webp', 0.8);
+        // Validate before converting
+        if (!validateImageForAnalysis(canvas)) {
+            return;
+        }
+
+        // Convert to JPEG with high quality for better OpenAI compatibility
+        const imageData = canvas.toDataURL('image/jpeg', 0.9);
+        console.log('Image captured as JPEG, size:', Math.round((imageData.length * 3) / 4 / 1024), 'KB');
+        
         setCapturedImage(imageData);
         stopCamera();
     };
 
-    const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const convertFileToJpeg = (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+
+            if (!ctx) {
+                reject(new Error('Could not get canvas context'));
+                return;
+            }
+
+            img.onload = () => {
+                // Optimize dimensions
+                const maxWidth = 1920;
+                const maxHeight = 1080;
+                let { width, height } = img;
+                
+                if (width > maxWidth || height > maxHeight) {
+                    const ratio = Math.min(maxWidth / width, maxHeight / height);
+                    width *= ratio;
+                    height *= ratio;
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                ctx.drawImage(img, 0, 0, width, height);
+
+                // Validate before converting
+                if (!validateImageForAnalysis(canvas)) {
+                    reject(new Error('Image validation failed'));
+                    return;
+                }
+
+                // Convert to JPEG
+                const jpegData = canvas.toDataURL('image/jpeg', 0.9);
+                console.log('File converted to JPEG, size:', Math.round((jpegData.length * 3) / 4 / 1024), 'KB');
+                resolve(jpegData);
+            };
+
+            img.onerror = () => reject(new Error('Failed to load image'));
+            img.src = URL.createObjectURL(file);
+        });
+    };
+
+    const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
 
@@ -135,20 +216,18 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
         // Clean up previous image
         cleanupCapturedImage();
 
-        // Convert file to data URL for preview
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const result = e.target?.result as string;
-            setCapturedImage(result);
-        };
-        reader.onerror = () => {
+        try {
+            // Convert to JPEG format for better OpenAI compatibility
+            const jpegData = await convertFileToJpeg(file);
+            setCapturedImage(jpegData);
+        } catch (error: any) {
+            console.error('File conversion error:', error);
             toast({
                 title: "File Error",
-                description: "Failed to read the selected file.",
+                description: error.message || "Failed to process the selected file.",
                 variant: "destructive",
             });
-        };
-        reader.readAsDataURL(file);
+        }
     };
 
     const handleRetake = () => {
@@ -163,6 +242,7 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
         if (!capturedImage) return;
         
         try {
+            console.log('Starting upload process for JPEG image...');
             await uploadPhoto(capturedImage);
         } catch (error: any) {
             console.error('Upload failed:', error);

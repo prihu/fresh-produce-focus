@@ -1,408 +1,275 @@
 
-import { Tables } from "@/integrations/supabase/types";
-import { Badge } from "@/components/ui/badge";
+import { useState } from 'react';
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { useToast } from "@/hooks/use-toast";
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { Loader2, AlertTriangle, CheckCircle, Clock, Zap, Eye, Leaf, RefreshCw } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { RefreshCw, CheckCircle, XCircle, Clock, AlertTriangle } from 'lucide-react';
+import { Tables } from "@/integrations/supabase/types";
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 type PackingPhoto = Tables<'packing_photos'>;
 
 interface PhotoAnalysisProps {
     packingPhoto: PackingPhoto;
-    onStatusUpdate?: (photo: PackingPhoto) => void;
+    onStatusUpdate: (photo: PackingPhoto) => void;
 }
 
 const PhotoAnalysis = ({ packingPhoto, onStatusUpdate }: PhotoAnalysisProps) => {
     const { toast } = useToast();
     const [isRetrying, setIsRetrying] = useState(false);
-    const [progress, setProgress] = useState(0);
-    const [estimatedTime, setEstimatedTime] = useState(45);
-    const [isOvertime, setIsOvertime] = useState(false);
-    const [timeInPending, setTimeInPending] = useState(0);
 
-    // Calculate time in pending status
-    useEffect(() => {
-        if (packingPhoto.ai_analysis_status === 'pending') {
-            const createdTime = new Date(packingPhoto.created_at).getTime();
-            const currentTime = Date.now();
-            const timeElapsed = Math.floor((currentTime - createdTime) / 1000);
-            setTimeInPending(timeElapsed);
-            
-            // If photo has been pending for more than 5 minutes, it's likely stuck
-            if (timeElapsed > 300) {
-                setIsOvertime(true);
-            }
+    const getStatusIcon = () => {
+        switch (packingPhoto.ai_analysis_status) {
+            case 'pending':
+                return <Clock className="h-4 w-4 text-blue-500 animate-spin" />;
+            case 'completed':
+                return <CheckCircle className="h-4 w-4 text-green-500" />;
+            case 'failed':
+                return <XCircle className="h-4 w-4 text-red-500" />;
+            default:
+                return <AlertTriangle className="h-4 w-4 text-gray-400" />;
         }
-    }, [packingPhoto.ai_analysis_status, packingPhoto.created_at]);
+    };
 
-    // Enhanced progress simulation for pending analysis
-    useEffect(() => {
-        if (packingPhoto.ai_analysis_status === 'pending') {
-            const startTime = Date.now();
-            
-            const interval = setInterval(() => {
-                const elapsed = (Date.now() - startTime) / 1000;
-                
-                if (elapsed >= 45 && !isOvertime) {
-                    setIsOvertime(true);
-                    setEstimatedTime(0);
-                    setProgress(85); // Stop at 85% to show it's still processing
-                } else if (elapsed < 45) {
-                    // More realistic progress curve - starts fast, slows down
-                    const progressPercent = Math.min(85, (elapsed / 45) * 85 + Math.sin(elapsed / 10) * 5);
-                    setProgress(progressPercent);
-                    setEstimatedTime(Math.max(0, 45 - Math.floor(elapsed)));
-                }
-            }, 1000);
-
-            return () => clearInterval(interval);
-        } else {
-            setProgress(100);
-            setIsOvertime(false);
+    const getStatusBadge = () => {
+        switch (packingPhoto.ai_analysis_status) {
+            case 'pending':
+                return <Badge variant="secondary" className="bg-blue-100 text-blue-700">Analyzing...</Badge>;
+            case 'completed':
+                return <Badge variant="secondary" className="bg-green-100 text-green-700">Complete</Badge>;
+            case 'failed':
+                return <Badge variant="destructive">Failed</Badge>;
+            default:
+                return <Badge variant="outline">Not Started</Badge>;
         }
-    }, [packingPhoto.ai_analysis_status, isOvertime]);
+    };
 
-    // Client-side polling as backup for real-time updates
-    useEffect(() => {
-        if (packingPhoto.ai_analysis_status === 'pending') {
-            const pollInterval = setInterval(async () => {
-                try {
-                    const { data, error } = await supabase
-                        .from('packing_photos')
-                        .select('*')
-                        .eq('id', packingPhoto.id)
-                        .single();
+    const getQualityBadge = (score: number) => {
+        if (score === 0) return <Badge variant="outline">Not Produce</Badge>;
+        if (score >= 8) return <Badge className="bg-green-500">Excellent</Badge>;
+        if (score >= 6) return <Badge className="bg-yellow-500">Good</Badge>;
+        if (score >= 4) return <Badge className="bg-orange-500">Fair</Badge>;
+        return <Badge variant="destructive">Poor</Badge>;
+    };
 
-                    if (error) {
-                        console.error('Polling error:', error);
-                        return;
-                    }
+    const getFreshnessBadge = (score: number) => {
+        if (score === 0) return <Badge variant="outline">Not Produce</Badge>;
+        if (score >= 8) return <Badge className="bg-green-500">Very Fresh</Badge>;
+        if (score >= 6) return <Badge className="bg-yellow-500">Fresh</Badge>;
+        if (score >= 4) return <Badge className="bg-orange-500">Acceptable</Badge>;
+        return <Badge variant="destructive">Stale</Badge>;
+    };
 
-                    if (data && data.ai_analysis_status !== packingPhoto.ai_analysis_status) {
-                        console.log('Status updated via polling:', data.ai_analysis_status);
-                        onStatusUpdate?.(data);
-                    }
-                } catch (error) {
-                    console.error('Polling failed:', error);
-                }
-            }, 3000); // Poll every 3 seconds
-
-            return () => clearInterval(pollInterval);
-        }
-    }, [packingPhoto.id, packingPhoto.ai_analysis_status, onStatusUpdate]);
-
-    const handleRetry = async () => {
+    const handleRetryAnalysis = async () => {
         setIsRetrying(true);
-        setProgress(0);
-        setEstimatedTime(45);
-        setIsOvertime(false);
         
         try {
-            console.log('Manually retrying analysis for photo:', packingPhoto.id);
+            console.log('Retrying analysis for photo:', packingPhoto.id);
             
-            // Update status to pending immediately for better UX
+            // Update status to pending
             const { error: updateError } = await supabase
                 .from('packing_photos')
                 .update({ ai_analysis_status: 'pending' })
                 .eq('id', packingPhoto.id);
 
             if (updateError) {
-                throw new Error(`Failed to reset status: ${updateError.message}`);
-            }
-            
-            // Invoke with optimized settings for faster processing
-            const { data: functionData, error: invokeError } = await supabase.functions.invoke('analyze-image', {
-                body: { 
-                    packing_photo_id: packingPhoto.id,
-                    fast_mode: true // Signal for faster processing
-                },
-            });
-
-            if (invokeError) {
-                console.error('Function invocation error during retry:', invokeError);
-                
-                // Update status back to failed
-                await supabase
-                    .from('packing_photos')
-                    .update({ ai_analysis_status: 'failed' })
-                    .eq('id', packingPhoto.id);
-                
-                throw new Error(`Analysis failed to start: ${invokeError.message}`);
+                throw new Error(`Failed to update status: ${updateError.message}`);
             }
 
-            console.log('Retry function invocation successful:', functionData);
-            
-            toast({ 
-                title: "Analysis Restarted", 
-                description: "Using optimized processing for faster results..." 
+            // Trigger the analysis
+            const { data: functionData, error: functionError } = await supabase.functions.invoke('analyze-image', {
+                body: { packing_photo_id: packingPhoto.id },
+                headers: {
+                    'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+                }
             });
+
+            if (functionError) {
+                throw new Error(functionError.message);
+            }
+
+            console.log('Retry analysis started successfully:', functionData);
+            
+            // Update local state
+            onStatusUpdate({
+                ...packingPhoto,
+                ai_analysis_status: 'pending'
+            });
+
+            toast({
+                title: "Analysis Restarted",
+                description: "AI analysis is processing your image again. This will take 30-60 seconds.",
+            });
+
         } catch (error: any) {
-            console.error('Retry failed:', error);
-            toast({ 
-                title: "Retry Failed", 
-                description: error.message || "Failed to restart analysis.", 
-                variant: "destructive" 
+            console.error('Retry analysis error:', error);
+            toast({
+                title: "Retry Failed",
+                description: error.message || "Could not restart the analysis. Please try again.",
+                variant: "destructive",
             });
         } finally {
             setIsRetrying(false);
         }
     };
 
-    const getQualityIcon = (score: number) => {
-        if (score >= 6) return <CheckCircle className="h-4 w-4 text-green-600" />;
-        return <AlertTriangle className="h-4 w-4 text-red-600" />;
-    };
-
-    const getQualityColor = (score: number) => {
-        if (score >= 6) return 'text-green-600';
-        return 'text-red-600';
-    };
-
-    const isProduceDetected = packingPhoto.item_name && 
-        !packingPhoto.item_name.toLowerCase().includes('not') &&
-        !packingPhoto.item_name.toLowerCase().includes('unidentified') &&
-        !packingPhoto.item_name.toLowerCase().includes('unclear');
-
-    const getStatusIcon = () => {
-        switch (packingPhoto.ai_analysis_status) {
-            case 'pending':
-                return timeInPending > 300 ? 
-                    <Clock className="h-4 w-4 text-red-600 animate-pulse" /> : 
-                    <Loader2 className="h-4 w-4 animate-spin text-purple-600" />;
-            case 'completed':
-                return <CheckCircle className="h-4 w-4 text-green-600" />;
-            case 'failed':
-                return <AlertTriangle className="h-4 w-4 text-red-600" />;
-            default:
-                return <Clock className="h-4 w-4" />;
-        }
-    };
-
-    const getStatusColor = () => {
-        switch (packingPhoto.ai_analysis_status) {
-            case 'completed':
-                return 'default';
-            case 'failed':
-                return 'destructive';
-            case 'pending':
-                return timeInPending > 300 ? 'destructive' : 'secondary';
-            default:
-                return 'secondary';
-        }
-    };
-
-    const getStatusText = () => {
-        if (packingPhoto.ai_analysis_status === 'pending') {
-            if (timeInPending > 300) {
-                return 'stuck - retry needed';
-            }
-            return isOvertime ? 'processing (extended)' : 'analyzing';
-        }
-        return packingPhoto.ai_analysis_status;
-    };
+    const meetsFreshnessStandard = packingPhoto.freshness_score >= 6;
+    const meetsQualityStandard = packingPhoto.quality_score >= 6;
+    const isProduceItem = packingPhoto.freshness_score > 0 && packingPhoto.quality_score > 0;
 
     return (
-        <div>
-            <h3 className="font-semibold mb-2 text-gray-800">AI Quality Analysis</h3>
-            <div className="p-4 border border-purple-100 rounded-xl bg-gradient-to-br from-purple-50 to-pink-50 space-y-3 shadow-sm">
-                <div className="flex items-center gap-2">
+        <div className="space-y-4">
+            <div className="flex items-center justify-between">
+                <h3 className="font-semibold flex items-center gap-2">
                     {getStatusIcon()}
-                    <p className="text-sm font-medium">Status:</p> 
-                    <Badge variant={getStatusColor()} className="capitalize">
-                        {getStatusText()}
-                    </Badge>
-                    {timeInPending > 300 && (
-                        <span className="text-xs text-red-600 font-medium flex items-center gap-1">
-                            <AlertTriangle className="h-3 w-3" />
-                            Stuck for {Math.floor(timeInPending / 60)} min
-                        </span>
-                    )}
+                    AI Analysis Results
+                </h3>
+                {getStatusBadge()}
+            </div>
+
+            {packingPhoto.ai_analysis_status === 'pending' && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                        <Clock className="h-4 w-4 text-blue-600 animate-pulse" />
+                        <span className="text-blue-800 font-medium">Analysis in Progress</span>
+                    </div>
+                    <p className="text-blue-700 text-sm">
+                        AI is analyzing the image using advanced JPEG processing. This typically takes 30-60 seconds.
+                    </p>
                 </div>
+            )}
 
-                {packingPhoto.ai_analysis_status === 'pending' && (
-                    <div className="space-y-3">
-                        <div className="flex items-center justify-between text-sm">
-                            <span className="font-medium text-gray-700">
-                                {timeInPending > 300 ? 'Analysis appears stuck. Please retry.' : 
-                                 isOvertime ? 'Taking some more time, please wait...' : 
-                                 'AI analyzing produce quality...'}
-                            </span>
-                            {!isOvertime && timeInPending <= 300 && (
-                                <span className="text-purple-600 font-medium">
-                                    ~{estimatedTime}s remaining
-                                </span>
-                            )}
+            {packingPhoto.ai_analysis_status === 'failed' && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                            <XCircle className="h-4 w-4 text-red-600" />
+                            <span className="text-red-800 font-medium">Analysis Failed</span>
                         </div>
-                        
-                        <Progress 
-                            value={progress} 
-                            className="w-full h-2" 
-                        />
-                        
-                        <div className="text-xs text-gray-600 space-y-1">
-                            {timeInPending > 300 ? (
-                                <>
-                                    <p className="font-medium text-red-700">
-                                        ⚠️ Analysis has been stuck for over 5 minutes
-                                    </p>
-                                    <p>This likely means the AI analysis failed to start properly. Please retry.</p>
-                                </>
-                            ) : isOvertime ? (
-                                <>
-                                    <p className="font-medium text-yellow-700">
-                                        ⏱️ Processing is taking longer than expected
-                                    </p>
-                                    <p>This can happen with complex images or high server load. Your analysis will complete soon.</p>
-                                </>
-                            ) : (
-                                <>
-                                    <p>Our AI is examining freshness, quality, and produce identification.</p>
-                                    <p className="text-purple-600">Using advanced image recognition for accurate results.</p>
-                                </>
-                            )}
-                        </div>
-                        
-                        {(isOvertime || timeInPending > 300) && (
-                            <div className="pt-2 border-t border-purple-200">
-                                <Button 
-                                    onClick={handleRetry} 
-                                    disabled={isRetrying} 
-                                    size="sm"
-                                    variant="outline"
-                                    className="border-purple-300 text-purple-700 hover:bg-purple-50"
-                                >
-                                    {isRetrying ? (
-                                        <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Restarting...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <RefreshCw className="mr-2 h-4 w-4" />
-                                            Retry Analysis
-                                        </>
-                                    )}
-                                </Button>
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {packingPhoto.ai_analysis_status === 'completed' && (
-                    <div className="mt-3 space-y-3">
-                        {/* Produce Detection Status */}
-                        <div className="p-3 rounded-lg border bg-white">
-                            <div className="flex items-center gap-2 mb-2">
-                                <Eye className="h-4 w-4 text-blue-600" />
-                                <span className="text-sm font-medium text-gray-700">Produce Detection:</span>
-                                {isProduceDetected ? (
-                                    <Badge variant="default" className="bg-green-100 text-green-800">
-                                        <CheckCircle className="h-3 w-3 mr-1" />
-                                        Verified
-                                    </Badge>
-                                ) : (
-                                    <Badge variant="destructive">
-                                        <AlertTriangle className="h-3 w-3 mr-1" />
-                                        Not Detected
-                                    </Badge>
-                                )}
-                            </div>
-                            <p className="text-sm text-gray-600">
-                                <strong>Item:</strong> {packingPhoto.item_name || 'Unidentified'}
-                            </p>
-                        </div>
-
-                        {/* Quality Scores */}
-                        <div className="p-3 rounded-lg border bg-white">
-                            <div className="flex items-center gap-2 mb-2">
-                                <Leaf className="h-4 w-4 text-green-600" />
-                                <span className="text-sm font-medium text-gray-700">Quality Assessment:</span>
-                            </div>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="flex items-center gap-2">
-                                    {getQualityIcon(packingPhoto.freshness_score || 0)}
-                                    <span className="text-sm">
-                                        <strong>Freshness:</strong>
-                                        <span className={`ml-1 font-bold ${getQualityColor(packingPhoto.freshness_score || 0)}`}>
-                                            {packingPhoto.freshness_score}/10
-                                        </span>
-                                    </span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    {getQualityIcon(packingPhoto.quality_score || 0)}
-                                    <span className="text-sm">
-                                        <strong>Quality:</strong>
-                                        <span className={`ml-1 font-bold ${getQualityColor(packingPhoto.quality_score || 0)}`}>
-                                            {packingPhoto.quality_score}/10
-                                        </span>
-                                    </span>
-                                </div>
-                            </div>
-                            <div className="mt-2 text-xs text-gray-500">
-                                ✓ Minimum required: 6/10 for both scores
-                            </div>
-                        </div>
-
-                        {/* Analysis Description */}
-                        {packingPhoto.description && (
-                            <div className="p-3 rounded-lg border bg-gray-50">
-                                <p className="text-sm">
-                                    <strong className="text-gray-700">Analysis:</strong>
-                                    <span className="text-gray-600 ml-1">{packingPhoto.description}</span>
-                                </p>
-                            </div>
-                        )}
-
-                        {/* Validation Summary */}
-                        {(!isProduceDetected || (packingPhoto.quality_score || 0) < 6 || (packingPhoto.freshness_score || 0) < 6) && (
-                            <div className="p-3 rounded-lg border border-red-200 bg-red-50">
-                                <div className="flex items-start gap-2">
-                                    <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5" />
-                                    <div>
-                                        <p className="text-sm font-medium text-red-700">Validation Failed</p>
-                                        <p className="text-xs text-red-600 mt-1">
-                                            This item cannot be packed due to quality standards. Please retake the photo.
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {packingPhoto.ai_analysis_status === 'failed' && (
-                     <div className="mt-3 space-y-3 bg-red-50 p-3 rounded-lg border border-red-200">
-                        <p className="text-sm text-red-700 font-medium">
-                            ❌ Analysis failed
-                        </p>
-                        <p className="text-xs text-red-600">
-                            This could be due to AI service issues, network problems, or invalid image format.
-                        </p>
-                        <Button 
-                            onClick={handleRetry} 
-                            disabled={isRetrying} 
-                            size="sm"
+                        <Button
+                            onClick={handleRetryAnalysis}
+                            disabled={isRetrying}
                             variant="outline"
-                            className="border-red-300 text-red-700 hover:bg-red-50"
+                            size="sm"
+                            className="text-red-600 border-red-200 hover:bg-red-50"
                         >
                             {isRetrying ? (
                                 <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
                                     Retrying...
                                 </>
                             ) : (
                                 <>
-                                    <RefreshCw className="mr-2 h-4 w-4" />
+                                    <RefreshCw className="h-3 w-3 mr-1" />
                                     Retry Analysis
                                 </>
                             )}
                         </Button>
                     </div>
-                )}
-            </div>
+                    <p className="text-red-700 text-sm">
+                        The image analysis failed. This might be due to image format issues or network problems. 
+                        Click "Retry Analysis" to try again with improved processing.
+                    </p>
+                </div>
+            )}
+
+            {packingPhoto.ai_analysis_status === 'completed' && (
+                <div className="space-y-4">
+                    {!isProduceItem ? (
+                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                            <div className="flex items-center gap-2 mb-2">
+                                <AlertTriangle className="h-4 w-4 text-gray-600" />
+                                <span className="text-gray-800 font-medium">Not a Produce Item</span>
+                            </div>
+                            <p className="text-gray-700 text-sm mb-2">
+                                <strong>Item:</strong> {packingPhoto.item_name}
+                            </p>
+                            <p className="text-gray-600 text-sm">
+                                {packingPhoto.description}
+                            </p>
+                            <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded">
+                                <p className="text-orange-800 text-sm font-medium">
+                                    ⚠️ Please retake the photo with the actual produce item for quality assessment.
+                                </p>
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="bg-white border rounded-lg p-4">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-sm font-medium text-gray-600">Quality Score</span>
+                                        {getQualityBadge(packingPhoto.quality_score)}
+                                    </div>
+                                    <div className="text-2xl font-bold text-gray-900">
+                                        {packingPhoto.quality_score}/10
+                                    </div>
+                                    {!meetsQualityStandard && (
+                                        <p className="text-red-600 text-xs mt-1">Below minimum standard (6/10)</p>
+                                    )}
+                                </div>
+
+                                <div className="bg-white border rounded-lg p-4">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-sm font-medium text-gray-600">Freshness Score</span>
+                                        {getFreshnessBadge(packingPhoto.freshness_score)}
+                                    </div>
+                                    <div className="text-2xl font-bold text-gray-900">
+                                        {packingPhoto.freshness_score}/10
+                                    </div>
+                                    {!meetsFreshnessStandard && (
+                                        <p className="text-red-600 text-xs mt-1">Below minimum standard (6/10)</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="bg-white border rounded-lg p-4">
+                                <div className="mb-2">
+                                    <span className="text-sm font-medium text-gray-600">Identified Item</span>
+                                </div>
+                                <div className="text-lg font-semibold text-gray-900 mb-2">
+                                    {packingPhoto.item_name}
+                                </div>
+                                <div className="text-sm text-gray-700">
+                                    {packingPhoto.description}
+                                </div>
+                            </div>
+
+                            {(!meetsFreshnessStandard || !meetsQualityStandard) && (
+                                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <XCircle className="h-4 w-4 text-red-600" />
+                                        <span className="text-red-800 font-medium">Quality Standards Not Met</span>
+                                    </div>
+                                    <div className="text-red-700 text-sm space-y-1">
+                                        {!meetsQualityStandard && (
+                                            <p>• Quality score ({packingPhoto.quality_score}/10) is below minimum (6/10)</p>
+                                        )}
+                                        {!meetsFreshnessStandard && (
+                                            <p>• Freshness score ({packingPhoto.freshness_score}/10) is below minimum (6/10)</p>
+                                        )}
+                                        <p className="mt-2 font-medium">
+                                            Please replace this item with a higher quality alternative before packing.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {meetsFreshnessStandard && meetsQualityStandard && (
+                                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <CheckCircle className="h-4 w-4 text-green-600" />
+                                        <span className="text-green-800 font-medium">Quality Standards Met</span>
+                                    </div>
+                                    <p className="text-green-700 text-sm">
+                                        Both quality and freshness scores meet the minimum requirements. This item is ready for packing.
+                                    </p>
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
+            )}
         </div>
     );
 };

@@ -19,19 +19,25 @@ const getSupabaseClient = () => {
   return supabaseClient;
 }
 
-// Helper function to convert blob to base64 in chunks to prevent stack overflow
-const convertBlobToBase64Chunked = async (blob: Blob): Promise<string> => {
-  const arrayBuffer = await blob.arrayBuffer();
-  const uint8Array = new Uint8Array(arrayBuffer);
-  const chunkSize = 8192; // 8KB chunks
-  let result = '';
-  
-  for (let i = 0; i < uint8Array.length; i += chunkSize) {
-    const chunk = uint8Array.slice(i, i + chunkSize);
-    result += btoa(String.fromCharCode.apply(null, Array.from(chunk)));
+// Simplified and more reliable base64 conversion
+const convertBlobToBase64 = async (blob: Blob): Promise<string> => {
+  try {
+    const arrayBuffer = await blob.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+    let binary = '';
+    
+    // Process in chunks to avoid memory issues with very large images
+    const chunkSize = 0x8000; // 32KB chunks
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      const chunk = bytes.subarray(i, i + chunkSize);
+      binary += String.fromCharCode.apply(null, Array.from(chunk));
+    }
+    
+    return btoa(binary);
+  } catch (error) {
+    console.error('Base64 conversion error:', error);
+    throw new Error(`Failed to convert image to base64: ${error.message}`);
   }
-  
-  return result;
 }
 
 // Helper function for exponential backoff retry
@@ -133,17 +139,27 @@ serve(async (req) => {
       return data;
     });
 
-    console.log(`[${correlationId}] Image downloaded successfully, converting to base64...`)
+    // Validate image before processing
+    if (imageData.size === 0) {
+      throw new Error('Downloaded image is empty');
+    }
+
+    if (imageData.size > 20 * 1024 * 1024) { // 20MB OpenAI limit
+      throw new Error('Image too large for analysis (>20MB)');
+    }
+
+    console.log(`[${correlationId}] Image downloaded successfully (${Math.round(imageData.size / 1024)}KB), converting to base64...`)
     
-    // Convert to base64 using chunked approach to prevent stack overflow
+    // Convert to base64 using simplified approach
     let base64Image: string;
     try {
-      base64Image = await convertBlobToBase64Chunked(imageData);
+      base64Image = await convertBlobToBase64(imageData);
+      console.log(`[${correlationId}] Base64 conversion successful, length: ${base64Image.length}`);
     } catch (conversionError) {
       throw new Error(`Failed to convert image to base64: ${conversionError.message}`);
     }
 
-    // Prepare OpenAI request with improved prompt
+    // Prepare OpenAI request with improved prompt and JPEG format specification
     const openaiPayload = {
       model: "gpt-4o-mini",
       messages: [
@@ -177,7 +193,7 @@ Respond in this EXACT JSON format:
             {
               type: "image_url",
               image_url: {
-                url: `data:image/webp;base64,${base64Image}`,
+                url: `data:image/jpeg;base64,${base64Image}`,
                 detail: fast_mode ? "low" : "high"
               }
             }
@@ -188,7 +204,7 @@ Respond in this EXACT JSON format:
       temperature: 0.1
     }
 
-    console.log(`[${correlationId}] Calling OpenAI API...`)
+    console.log(`[${correlationId}] Calling OpenAI API with JPEG format...`)
     
     // Call OpenAI API with timeout and retry
     const openaiResult = await retryWithBackoff(async () => {
