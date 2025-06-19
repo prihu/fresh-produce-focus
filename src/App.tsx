@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -49,9 +50,9 @@ const ProtectedRoute = ({
   return <>{children}</>;
 };
 
-// Public Route component (redirects authenticated users)
+// Public Route component (redirects authenticated users to their dashboard)
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, isLoading } = useSecureAuth();
+  const { user, userRole, isLoading } = useSecureAuth();
 
   if (isLoading) {
     return (
@@ -61,8 +62,12 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  if (user) {
-    return <Navigate to="/packer" replace />;
+  // Redirect authenticated users to their appropriate dashboard
+  if (user && userRole) {
+    if (userRole === 'packer' || userRole === 'admin') {
+      return <Navigate to="/packer" replace />;
+    }
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;

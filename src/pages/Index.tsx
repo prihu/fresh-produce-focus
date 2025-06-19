@@ -1,7 +1,6 @@
 
 import React from 'react';
 import { useSecureAuth } from '@/contexts/SecureAuthContext';
-import { Navigate } from 'react-router-dom';
 
 const Index = () => {
   const { user, userRole, isLoading } = useSecureAuth();
@@ -14,12 +13,7 @@ const Index = () => {
     );
   }
 
-  // Redirect users based on their role
-  if (user && userRole === 'packer') {
-    return <Navigate to="/packer" replace />;
-  }
-
-  // For now, just show a simple dashboard
+  // Simple dashboard for non-packer users
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="max-w-md w-full bg-white rounded-lg shadow-md p-6 text-center">
@@ -29,9 +23,10 @@ const Index = () => {
         <p className="text-gray-600 mb-4">
           Your quality assurance dashboard
         </p>
-        <p className="text-sm text-gray-500">
-          Role: {userRole || 'Loading...'}
-        </p>
+        <div className="space-y-2 text-sm text-gray-500">
+          <p>User: {user?.email}</p>
+          <p>Role: {userRole || 'Loading...'}</p>
+        </div>
       </div>
     </div>
   );

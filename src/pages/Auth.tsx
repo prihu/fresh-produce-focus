@@ -16,7 +16,6 @@ const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isRoleAssigning, setIsRoleAssigning] = useState(false);
   const [signupSuccess, setSignupSuccess] = useState(false);
   const navigate = useNavigate();
 
@@ -35,34 +34,8 @@ const Auth = () => {
 
         if (data.user) {
           setSignupSuccess(true);
-          setIsRoleAssigning(true);
-          
-          // Wait a moment for the trigger to complete role assignment
-          setTimeout(async () => {
-            try {
-              // Check if role was assigned
-              const { data: roleData } = await supabase
-                .from('user_roles')
-                .select('role')
-                .eq('user_id', data.user.id)
-                .single();
-
-              setIsRoleAssigning(false);
-              
-              if (roleData) {
-                toast.success('Account created successfully! You can now start packing orders.');
-                navigate('/packer');
-              } else {
-                toast.success('Account created! Please wait a moment while we set up your access...');
-                // Retry after a short delay
-                setTimeout(() => navigate('/packer'), 2000);
-              }
-            } catch (error) {
-              setIsRoleAssigning(false);
-              toast.success('Account created! Redirecting to your dashboard...');
-              navigate('/packer');
-            }
-          }, 1500);
+          toast.success('Account created successfully! Please wait while we set up your access...');
+          // Let the auth context handle navigation automatically
         }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -73,15 +46,12 @@ const Auth = () => {
         if (error) throw error;
 
         toast.success('Welcome back!');
-        navigate('/packer');
+        // Navigation will be handled by the auth context and routing
       }
     } catch (error: any) {
       console.error('Auth error:', error);
       toast.error(error.message || 'An error occurred during authentication');
-    } finally {
-      if (!isSignUp || !signupSuccess) {
-        setIsLoading(false);
-      }
+      setIsLoading(false);
     }
   };
 
@@ -91,27 +61,20 @@ const Auth = () => {
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <div className="mx-auto mb-4">
-              {isRoleAssigning ? (
-                <Loader2 className="h-12 w-12 text-fresh-500 animate-spin" />
-              ) : (
-                <CheckCircle className="h-12 w-12 text-green-500" />
-              )}
+              <CheckCircle className="h-12 w-12 text-green-500" />
             </div>
             <CardTitle className="text-2xl text-gray-900">
-              {isRoleAssigning ? 'Setting up your account...' : 'Welcome to Zepto Freshness!'}
+              Welcome to Zepto Freshness!
             </CardTitle>
             <CardDescription>
-              {isRoleAssigning 
-                ? 'Please wait while we configure your packer access...' 
-                : 'Your account has been created successfully. You can now start ensuring fresh produce quality for our customers!'
-              }
+              Your account has been created successfully. You'll be redirected to your dashboard shortly.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Alert className="border-green-200 bg-green-50">
               <CheckCircle className="h-4 w-4 text-green-600" />
               <AlertDescription className="text-green-800">
-                <strong>Next steps:</strong>
+                <strong>What's next:</strong>
                 <ul className="mt-2 space-y-1 text-sm">
                   <li>• Access your packer dashboard</li>
                   <li>• Create and manage orders</li>
@@ -120,15 +83,6 @@ const Auth = () => {
                 </ul>
               </AlertDescription>
             </Alert>
-            
-            {!isRoleAssigning && (
-              <Button 
-                onClick={() => navigate('/packer')} 
-                className="w-full mt-4"
-              >
-                Go to Dashboard
-              </Button>
-            )}
           </CardContent>
         </Card>
       </div>

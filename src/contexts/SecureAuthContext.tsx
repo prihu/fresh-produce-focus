@@ -32,7 +32,7 @@ export const SecureAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchUserRole = async (userId: string, retryCount = 0): Promise<UserRole | null> => {
+  const fetchUserRole = async (userId: string): Promise<UserRole | null> => {
     try {
       const { data, error } = await supabase
         .from('user_roles')
@@ -41,13 +41,6 @@ export const SecureAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         .single();
       
       if (error) {
-        // If no role found and it's a new user, retry a few times
-        if (error.code === 'PGRST116' && retryCount < 3) {
-          console.log(`Role not found for user ${userId}, retrying in ${(retryCount + 1) * 1000}ms...`);
-          await new Promise(resolve => setTimeout(resolve, (retryCount + 1) * 1000));
-          return fetchUserRole(userId, retryCount + 1);
-        }
-        
         console.error('Error fetching user role:', SecurityUtils.formatSafeErrorMessage(error));
         return 'user'; // Default to 'user' role if no role is found
       }
@@ -109,23 +102,24 @@ export const SecureAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setUser(currentSession?.user ?? null);
       
       if (currentSession?.user) {
-        // Fetch user role asynchronously with retry logic
+        // Fetch user role for authenticated users
         try {
           const role = await fetchUserRole(currentSession.user.id);
           if (mounted) {
             console.log('User role assigned:', role);
             setUserRole(role);
-            setIsLoading(false);
           }
         } catch (error) {
           console.error('Failed to fetch user role:', SecurityUtils.formatSafeErrorMessage(error));
           if (mounted) {
             setUserRole('user'); // Default fallback
-            setIsLoading(false);
           }
         }
       } else {
         setUserRole(null);
+      }
+      
+      if (mounted) {
         setIsLoading(false);
       }
     };
