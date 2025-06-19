@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useSecureAuth } from '@/contexts/SecureAuthContext';
 import { SecurityUtils } from '@/utils/security';
 import { toast } from 'sonner';
+import { AlertCircle, Loader2 } from 'lucide-react';
 
 const SecureCreateOrderForm = () => {
   const { user, hasRole } = useSecureAuth();
@@ -21,8 +22,9 @@ const SecureCreateOrderForm = () => {
   if (!hasRole('packer') && !hasRole('admin')) {
     return (
       <Alert>
+        <AlertCircle className="h-4 w-4" />
         <AlertDescription>
-          You do not have permission to create orders.
+          You do not have permission to create orders. If you just signed up, please refresh the page in a moment.
         </AlertDescription>
       </Alert>
     );
@@ -45,7 +47,16 @@ const SecureCreateOrderForm = () => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        // Provide more user-friendly error messages
+        if (error.message.includes('row-level security')) {
+          throw new Error('Unable to create order. If you just signed up, please wait a moment and try again.');
+        }
+        if (error.message.includes('duplicate')) {
+          throw new Error('An order with this number already exists. Please use a different order number.');
+        }
+        throw error;
+      }
       return data;
     },
     onMutate: async (sanitizedOrderNumber) => {
@@ -75,7 +86,7 @@ const SecureCreateOrderForm = () => {
       return { previousOrders };
     },
     onSuccess: (data) => {
-      toast.success('Order created successfully');
+      toast.success('Order created successfully! You can now start packing.');
       setOrderNumber('');
       setValidationError(null);
       
@@ -96,7 +107,13 @@ const SecureCreateOrderForm = () => {
       }
       
       const safeMessage = SecurityUtils.formatSafeErrorMessage(error);
-      toast.error(`Failed to create order: ${safeMessage}`);
+      
+      // Show user-friendly error message
+      if (safeMessage.includes('row-level security') || safeMessage.includes('Unable to create order')) {
+        toast.error('Unable to create order. If you just signed up, please wait a moment and try again.');
+      } else {
+        toast.error(`Failed to create order: ${safeMessage}`);
+      }
     },
     onSettled: () => {
       // Always refetch after error or success to ensure data is in sync
@@ -176,7 +193,14 @@ const SecureCreateOrderForm = () => {
             disabled={isPending || !!validationError || !orderNumber.trim()}
             className="w-full"
           >
-            {isPending ? 'Creating...' : 'Create Order'}
+            {isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating Order...
+              </>
+            ) : (
+              'Create Order'
+            )}
           </Button>
         </form>
       </CardContent>
