@@ -52,6 +52,26 @@ export const SecureAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   };
 
+  // Role verification with polling for new users
+  const verifyUserRoleWithRetry = async (userId: string, maxRetries: number = 5): Promise<UserRole | null> => {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      const role = await fetchUserRole(userId);
+      
+      if (role && role !== 'user') {
+        console.log(`Role verified for user ${userId}: ${role} (attempt ${attempt + 1})`);
+        return role;
+      }
+      
+      if (attempt < maxRetries - 1) {
+        console.log(`Role not yet available, retrying in ${(attempt + 1) * 1000}ms...`);
+        await new Promise(resolve => setTimeout(resolve, (attempt + 1) * 1000));
+      }
+    }
+    
+    console.warn(`Role verification failed after ${maxRetries} attempts for user ${userId}`);
+    return 'user'; // Default fallback
+  };
+
   const hasRole = (role: UserRole): boolean => {
     if (!userRole) return false;
     
@@ -102,9 +122,18 @@ export const SecureAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setUser(currentSession?.user ?? null);
       
       if (currentSession?.user) {
-        // Fetch user role for authenticated users
+        // For new signups, use retry mechanism to handle race conditions
         try {
-          const role = await fetchUserRole(currentSession.user.id);
+          let role: UserRole | null;
+          
+          if (event === 'SIGNED_UP') {
+            console.log('New signup detected, using retry mechanism for role verification');
+            role = await verifyUserRoleWithRetry(currentSession.user.id);
+          } else {
+            // For existing users, use regular fetch
+            role = await fetchUserRole(currentSession.user.id);
+          }
+          
           if (mounted) {
             console.log('User role assigned:', role);
             setUserRole(role);
