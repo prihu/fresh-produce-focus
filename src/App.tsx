@@ -64,6 +64,7 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
 
   // Redirect authenticated users to their appropriate dashboard
   if (user && userRole) {
+    console.log('PublicRoute: Redirecting user with role:', userRole);
     if (userRole === 'packer' || userRole === 'admin') {
       return <Navigate to="/packer" replace />;
     }

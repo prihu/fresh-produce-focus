@@ -135,7 +135,7 @@ export const SecureAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           }
           
           if (mounted) {
-            console.log('User role assigned:', role);
+            console.log('User role set to:', role);
             setUserRole(role);
           }
         } catch (error) {
