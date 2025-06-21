@@ -63,12 +63,11 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   // Redirect authenticated users to their appropriate dashboard
-  if (user && userRole) {
+  if (user) {
     console.log('PublicRoute: Redirecting user with role:', userRole);
-    if (userRole === 'packer' || userRole === 'admin') {
-      return <Navigate to="/packer" replace />;
-    }
-    return <Navigate to="/" replace />;
+    // Default redirect to packer dashboard for all authenticated users
+    // since this is primarily a packer application
+    return <Navigate to="/packer" replace />;
   }
 
   return <>{children}</>;

@@ -27,14 +27,14 @@ const Auth = () => {
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/`
+            emailRedirectTo: `${window.location.origin}/packer`
           }
         });
 
         if (error) throw error;
 
         if (data.user) {
-          toast.success('Account created successfully! Welcome to the team.');
+          toast.success('Account created successfully! Please check your email to confirm your account.');
           // Let the auth context handle navigation automatically
         }
       } else {

@@ -59,53 +59,14 @@ const SecureCreateOrderForm = () => {
       }
       return data;
     },
-    onMutate: async (sanitizedOrderNumber) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ['packerOrders'] });
-
-      // Snapshot the previous value
-      const previousOrders = queryClient.getQueryData(['packerOrders']);
-
-      // Optimistically update to the new value
-      if (user) {
-        const optimisticOrder = {
-          id: `temp-${Date.now()}`, // Temporary ID
-          order_number: sanitizedOrderNumber,
-          manually_created: true,
-          packer_id: user.id,
-          status: 'pending_packing' as const,
-          created_at: new Date().toISOString()
-        };
-
-        queryClient.setQueryData(['packerOrders'], (old: any) => {
-          return old ? [optimisticOrder, ...old] : [optimisticOrder];
-        });
-      }
-
-      // Return a context object with the snapshotted value
-      return { previousOrders };
-    },
-    onSuccess: (data) => {
+    onSuccess: () => {
       toast.success('Order created successfully! You can now start packing.');
       setOrderNumber('');
       setValidationError(null);
-      
-      // Update the cache with the real data from server
-      queryClient.setQueryData(['packerOrders'], (old: any) => {
-        if (!old) return [data];
-        
-        // Replace the optimistic order with the real one
-        return old.map((order: any) => 
-          order.id.startsWith('temp-') ? data : order
-        );
-      });
+      // Refetch orders to update the list
+      queryClient.invalidateQueries({ queryKey: ['packerOrders'] });
     },
-    onError: (error, _, context) => {
-      // Rollback on error
-      if (context?.previousOrders) {
-        queryClient.setQueryData(['packerOrders'], context.previousOrders);
-      }
-      
+    onError: (error) => {
       const safeMessage = SecurityUtils.formatSafeErrorMessage(error);
       
       // Show user-friendly error message
@@ -114,10 +75,6 @@ const SecureCreateOrderForm = () => {
       } else {
         toast.error(`Failed to create order: ${safeMessage}`);
       }
-    },
-    onSettled: () => {
-      // Always refetch after error or success to ensure data is in sync
-      queryClient.invalidateQueries({ queryKey: ['packerOrders'] });
     },
   });
 
