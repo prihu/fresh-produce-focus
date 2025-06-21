@@ -73,17 +73,40 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+// Smart Root Route that handles authenticated users properly
+const RootRoute = () => {
+  const { user, userRole, isLoading } = useSecureAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-fresh-500"></div>
+      </div>
+    );
+  }
+
+  // If user is authenticated, redirect based on their role
+  if (user) {
+    console.log('RootRoute: Authenticated user with role:', userRole);
+    // For packers and admins, redirect to packer dashboard
+    if (userRole === 'packer' || userRole === 'admin') {
+      return <Navigate to="/packer" replace />;
+    }
+    // For other users, show the general dashboard
+    return <Index />;
+  }
+
+  // If not authenticated, redirect to auth
+  return <Navigate to="/auth" replace />;
+};
+
 function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
         <Route 
           path="/" 
-          element={
-            <ProtectedRoute>
-              <Index />
-            </ProtectedRoute>
-          } 
+          element={<RootRoute />}
         />
         <Route 
           path="/auth" 
