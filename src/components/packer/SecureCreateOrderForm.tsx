@@ -59,12 +59,23 @@ const SecureCreateOrderForm = () => {
       }
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success('Order created successfully! You can now start packing.');
       setOrderNumber('');
       setValidationError(null);
-      // Refetch orders to update the list
+      
+      // More aggressive cache invalidation to fix first-time loading issues
       queryClient.invalidateQueries({ queryKey: ['packerOrders'] });
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      
+      // Also update the cache directly to ensure immediate UI update
+      queryClient.setQueryData(['packerOrders'], (oldData: any) => {
+        if (!oldData) return [data];
+        return [data, ...oldData];
+      });
+      
+      // Refetch to ensure consistency
+      queryClient.refetchQueries({ queryKey: ['packerOrders'] });
     },
     onError: (error) => {
       const safeMessage = SecurityUtils.formatSafeErrorMessage(error);

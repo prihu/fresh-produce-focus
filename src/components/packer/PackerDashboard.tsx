@@ -21,8 +21,17 @@ const PackerDashboard = () => {
   const { data: orders, isLoading, error, isRefetching } = useQuery({
     queryKey: ["packerOrders"],
     queryFn: fetchOrders,
-    refetchOnWindowFocus: false,
-    staleTime: 30000, // Consider data fresh for 30 seconds
+    refetchOnWindowFocus: true, // Enable refetch on focus to keep data fresh
+    refetchOnMount: true, // Always refetch when component mounts
+    staleTime: 10000, // Reduce stale time to 10 seconds for more frequent updates
+    gcTime: 300000, // Keep data in cache for 5 minutes
+    retry: (failureCount, error) => {
+      // Don't retry on auth errors
+      if (error.message.includes('permission') || error.message.includes('access')) {
+        return false;
+      }
+      return failureCount < 2;
+    }
   });
 
   // Function to determine the header text and description based on order states
