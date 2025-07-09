@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isPasswordReset, setIsPasswordReset] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -21,7 +22,17 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
-      if (isSignUp) {
+      if (isPasswordReset) {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/auth`,
+        });
+
+        if (error) throw error;
+
+        toast.success('Password reset email sent! Please check your inbox.');
+        setIsPasswordReset(false);
+        setEmail('');
+      } else if (isSignUp) {
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
@@ -49,7 +60,20 @@ const Auth = () => {
       }
     } catch (error: any) {
       console.error('Auth error:', error);
-      toast.error(error.message || 'An error occurred during authentication');
+      let errorMessage = 'An error occurred during authentication';
+      
+      // Enhanced error handling
+      if (error.message.includes('Invalid login credentials')) {
+        errorMessage = 'Invalid email or password. Please check your credentials and try again.';
+      } else if (error.message.includes('Email not confirmed')) {
+        errorMessage = 'Please check your email and click the confirmation link before signing in.';
+      } else if (error.message.includes('Too many requests')) {
+        errorMessage = 'Too many attempts. Please wait a moment before trying again.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -100,12 +124,14 @@ const Auth = () => {
         <Card className="w-full max-w-md mx-auto">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl text-gray-900">
-              {isSignUp ? 'Join Our Team' : 'Welcome Back'}
+              {isPasswordReset ? 'Reset Password' : isSignUp ? 'Join Our Team' : 'Welcome Back'}
             </CardTitle>
             <CardDescription>
-              {isSignUp 
-                ? 'Help us maintain the highest freshness standards' 
-                : 'Sign in to your quality assurance dashboard'
+              {isPasswordReset 
+                ? 'Enter your email to receive a password reset link'
+                : isSignUp 
+                  ? 'Help us maintain the highest freshness standards' 
+                  : 'Sign in to your quality assurance dashboard'
               }
             </CardDescription>
           </CardHeader>
@@ -123,43 +149,64 @@ const Auth = () => {
                   placeholder="Enter your email"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  disabled={isLoading}
-                  placeholder="Enter your password"
-                  minLength={6}
-                />
-              </div>
+              {!isPasswordReset && (
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    disabled={isLoading}
+                    placeholder="Enter your password"
+                    minLength={6}
+                  />
+                </div>
+              )}
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" className="w-full" disabled={isLoading || (isPasswordReset && !email.trim())}>
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {isSignUp ? 'Creating Account...' : 'Signing In...'}
+                    {isPasswordReset ? 'Sending Reset Email...' : isSignUp ? 'Creating Account...' : 'Signing In...'}
                   </>
                 ) : (
-                  isSignUp ? 'Create Account' : 'Sign In'
+                  isPasswordReset ? 'Send Reset Email' : isSignUp ? 'Create Account' : 'Sign In'
                 )}
               </Button>
             </form>
 
             <Separator className="my-6" />
 
-            <Button
-              type="button"
-              variant="ghost"
-              className="w-full"
-              onClick={() => setIsSignUp(!isSignUp)}
-              disabled={isLoading}
-            >
-              {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
-            </Button>
+            <div className="space-y-2">
+              {!isPasswordReset && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full"
+                  onClick={() => setIsSignUp(!isSignUp)}
+                  disabled={isLoading}
+                >
+                  {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+                </Button>
+              )}
+              
+              {!isSignUp && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full text-sm"
+                  onClick={() => {
+                    setIsPasswordReset(!isPasswordReset);
+                    setPassword('');
+                  }}
+                  disabled={isLoading}
+                >
+                  {isPasswordReset ? 'Back to Sign In' : 'Forgot your password?'}
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>

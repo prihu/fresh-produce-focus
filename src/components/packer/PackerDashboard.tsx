@@ -11,8 +11,8 @@ const fetchOrders = async () => {
   const { data, error } = await supabase
     .from("orders")
     .select("*")
-    .order("status", { ascending: true })
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false }) // Newest orders first
+    .order("status", { ascending: true }); // Then group by status
   if (error) throw new Error(error.message);
   return data;
 };
