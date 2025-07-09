@@ -20,15 +20,44 @@ export const useSecurePhotoUpload = ({ orderId, productId, onPhotoUploaded }: Us
   const { user, canAccessOrder } = useSecureAuth();
   const [isUploading, setIsUploading] = useState(false);
 
+  // Enhanced rate limiting check
+  const checkUploadRateLimit = async (): Promise<boolean> => {
+    try {
+      const { data: rateLimitCheck, error } = await supabase
+        .rpc('check_rate_limit', {
+          operation_type: 'photo_upload',
+          max_requests: 30, // 30 uploads per hour
+          window_minutes: 60
+        });
+
+      if (error) {
+        console.error('Rate limit check failed:', error);
+        return true; // Allow upload if check fails
+      }
+
+      return rateLimitCheck === true;
+    } catch (error) {
+      console.error('Rate limit check error:', error);
+      return true; // Allow upload if check fails
+    }
+  };
+
   const triggerAnalysisWithRetry = async (photoId: string, maxRetries = 3) => {
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         console.log(`Analysis attempt ${attempt + 1} for photo:`, photoId);
         
+        // Enhanced session validation
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError || !session?.access_token) {
+          throw new Error('Authentication required for analysis');
+        }
+        
         const { data: functionData, error: functionError } = await supabase.functions.invoke('analyze-image', {
           body: { packing_photo_id: photoId },
           headers: {
-            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+            'Authorization': `Bearer ${session.access_token}`,
           }
         });
 
@@ -47,6 +76,15 @@ export const useSecurePhotoUpload = ({ orderId, productId, onPhotoUploaded }: Us
         
       } catch (analysisError: any) {
         console.error(`Analysis attempt ${attempt + 1} failed:`, analysisError);
+        
+        // Log failed analysis attempts for monitoring
+        console.warn('Photo analysis attempt failed', {
+          photoId,
+          attempt: attempt + 1,
+          error: analysisError.message,
+          userId: user?.id,
+          timestamp: new Date().toISOString()
+        });
         
         if (attempt === maxRetries - 1) {
           // Final attempt failed, update photo status
@@ -82,6 +120,12 @@ export const useSecurePhotoUpload = ({ orderId, productId, onPhotoUploaded }: Us
     setIsUploading(true);
 
     try {
+      // Enhanced rate limiting
+      const canUpload = await checkUploadRateLimit();
+      if (!canUpload) {
+        throw new Error('Upload rate limit exceeded. Please wait before uploading more photos.');
+      }
+
       // Convert base64 to blob for file validation
       const response = await fetch(image);
       const blob = await response.blob();
@@ -89,10 +133,15 @@ export const useSecurePhotoUpload = ({ orderId, productId, onPhotoUploaded }: Us
       // Create a File object for validation
       const file = new File([blob], 'photo.webp', { type: 'image/webp' });
       
-      // Validate file
+      // Enhanced file validation
       const validation = SecurityUtils.validateFileUpload(file);
       if (!validation.isValid) {
         throw new Error(validation.error);
+      }
+
+      // Additional security checks
+      if (blob.size > 15 * 1024 * 1024) { // 15MB limit
+        throw new Error('File too large. Maximum size is 15MB.');
       }
 
       // Verify order access before upload
@@ -103,10 +152,22 @@ export const useSecurePhotoUpload = ({ orderId, productId, onPhotoUploaded }: Us
         .single();
 
       if (orderError) {
+        console.error('Order verification failed', {
+          orderId,
+          userId: user.id,
+          error: orderError.message,
+          timestamp: new Date().toISOString()
+        });
         throw new Error('Failed to verify order access');
       }
 
       if (!canAccessOrder(orderData.packer_id)) {
+        console.warn('Unauthorized photo upload attempt', {
+          orderId,
+          userId: user.id,
+          orderPackerId: orderData.packer_id,
+          timestamp: new Date().toISOString()
+        });
         throw new Error('You do not have permission to upload photos for this order');
       }
 
@@ -130,19 +191,30 @@ export const useSecurePhotoUpload = ({ orderId, productId, onPhotoUploaded }: Us
       // Generate secure filename with order validation
       const fileName = `${orderId}/${uuidv4()}.webp`;
 
-      // Upload to storage
+      // Enhanced upload with metadata
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('packing-photos')
         .upload(fileName, blob, {
           contentType: 'image/webp',
-          upsert: false
+          upsert: false,
+          metadata: {
+            uploadedBy: user.id,
+            orderId: orderId,
+            uploadTimestamp: new Date().toISOString()
+          }
         });
       
       if (uploadError) {
+        console.error('Upload failed', {
+          orderId,
+          userId: user.id,
+          error: uploadError.message,
+          timestamp: new Date().toISOString()
+        });
         throw new Error(`Upload failed: ${SecurityUtils.formatSafeErrorMessage(uploadError)}`);
       }
 
-      // Insert photo record with validation
+      // Insert photo record with enhanced validation
       const { data: photoRecord, error: insertError } = await supabase
         .from('packing_photos')
         .insert({
@@ -155,12 +227,27 @@ export const useSecurePhotoUpload = ({ orderId, productId, onPhotoUploaded }: Us
       
       if (insertError) {
         // Clean up uploaded file if database insert fails
+        console.error('Database insert failed, cleaning up uploaded file', {
+          fileName,
+          error: insertError.message,
+          timestamp: new Date().toISOString()
+        });
+        
         await supabase.storage
           .from('packing-photos')
           .remove([uploadData.path]);
         
         throw new Error(`Failed to save photo record: ${SecurityUtils.formatSafeErrorMessage(insertError)}`);
       }
+      
+      // Log successful upload for monitoring
+      console.log('Photo uploaded successfully', {
+        photoId: photoRecord.id,
+        orderId,
+        userId: user.id,
+        fileName,
+        timestamp: new Date().toISOString()
+      });
       
       toast({ 
         title: "Photo uploaded successfully", 
@@ -170,12 +257,18 @@ export const useSecurePhotoUpload = ({ orderId, productId, onPhotoUploaded }: Us
       // Call onPhotoUploaded immediately after successful upload
       onPhotoUploaded(photoRecord);
 
-      // Trigger AI analysis with retry logic
+      // Trigger AI analysis with enhanced retry logic
       await triggerAnalysisWithRetry(photoRecord.id);
 
     } catch (error: any) {
       const safeMessage = SecurityUtils.formatSafeErrorMessage(error);
-      console.error('Photo upload error:', error);
+      console.error('Photo upload error:', {
+        error: error.message,
+        userId: user?.id,
+        orderId,
+        timestamp: new Date().toISOString()
+      });
+      
       toast({
         title: "Upload Failed",
         description: safeMessage,

@@ -222,6 +222,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_rate_limit: {
+        Args: {
+          operation_type: string
+          max_requests?: number
+          window_minutes?: number
+        }
+        Returns: boolean
+      }
       check_user_role: {
         Args: { role_to_check: Database["public"]["Enums"]["app_role"] }
         Returns: boolean
