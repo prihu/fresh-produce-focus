@@ -8,6 +8,8 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  isLoading: boolean; // Alias for loading
+  userRole: string | null; // Primary role for the user
   hasRole: (role: string) => boolean;
   canAccessOrder: (packerIdFromOrder: string | null) => boolean;
   signOut: () => Promise<void>;
@@ -243,10 +245,17 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
+  // Derive primary user role (prioritize admin > packer > user)
+  const userRole = userRoles.includes('admin') ? 'admin' : 
+                   userRoles.includes('packer') ? 'packer' : 
+                   userRoles.length > 0 ? userRoles[0] : null;
+
   const value: AuthContextType = {
     user,
     session,
     loading,
+    isLoading: loading, // Alias for loading
+    userRole,
     hasRole,
     canAccessOrder,
     signOut,
