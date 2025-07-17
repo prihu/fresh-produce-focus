@@ -245,18 +245,33 @@ serve(async (req) => {
     // Enhanced OpenAI API call with timeout and retry logic
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
     if (!openaiApiKey) {
-      console.error('OpenAI API key not configured');
+      console.error('OpenAI API key not configured', {
+        photoId: packing_photo_id,
+        userId: user.id,
+        timestamp: new Date().toISOString(),
+        envVars: Object.keys(Deno.env.toObject()).filter(k => k.includes('OPENAI'))
+      });
       
       await supabase
         .from('packing_photos')
-        .update({ ai_analysis_status: 'failed' })
+        .update({ 
+          ai_analysis_status: 'failed',
+          description: 'API key not configured' 
+        })
         .eq('id', packing_photo_id);
 
       return new Response(
-        JSON.stringify({ error: 'AI service unavailable' }),
+        JSON.stringify({ error: 'AI service unavailable - API key not configured' }),
         { status: 503, headers: corsHeaders }
       );
     }
+
+    console.log('OpenAI API key found, proceeding with analysis', {
+      photoId: packing_photo_id,
+      userId: user.id,
+      keyLength: openaiApiKey.length,
+      timestamp: new Date().toISOString()
+    });
 
     // Call OpenAI with enhanced timeout and error handling
     const controller = new AbortController();
