@@ -1,25 +1,67 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { encodeBase64 } from "https://deno.land/std@0.208.0/encoding/base64.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Enhanced chunk-based base64 conversion to prevent memory overflow
-const convertToBase64Chunked = (arrayBuffer: ArrayBuffer): string => {
-  const uint8Array = new Uint8Array(arrayBuffer);
-  let result = '';
-  const chunkSize = 8192; // 8KB chunks to prevent memory issues
-  
-  for (let i = 0; i < uint8Array.length; i += chunkSize) {
-    const chunk = uint8Array.slice(i, i + chunkSize);
-    const chunkString = Array.from(chunk).map(byte => String.fromCharCode(byte)).join('');
-    result += btoa(chunkString);
+// Memory-safe base64 conversion using Deno standard library
+const convertToBase64Safe = async (arrayBuffer: ArrayBuffer): Promise<string> => {
+  try {
+    console.log('🔄 Converting image to base64 using Deno standard library');
+    const uint8Array = new Uint8Array(arrayBuffer);
+    
+    // Log memory usage for monitoring
+    console.log('📊 Image processing:', { 
+      bufferSize: arrayBuffer.byteLength,
+      sizeInMB: Math.round(arrayBuffer.byteLength / 1024 / 1024 * 100) / 100
+    });
+    
+    // Use Deno's built-in base64 encoding - memory efficient and reliable
+    const base64String = encodeBase64(uint8Array);
+    
+    // Validate the base64 output
+    if (!base64String || base64String.length === 0) {
+      throw new Error('Base64 conversion resulted in empty string');
+    }
+    
+    // Log sample for debugging (first 100 chars)
+    console.log('✅ Base64 conversion successful:', { 
+      outputLength: base64String.length,
+      sample: base64String.substring(0, 100) + '...'
+    });
+    
+    return base64String;
+  } catch (error) {
+    console.error('❌ Base64 conversion failed:', error.message);
+    throw new Error(`Base64 conversion failed: ${error.message}`);
+  }
+};
+
+// Validate image format and size
+const validateImage = (blob: Blob): { isValid: boolean; error?: string } => {
+  // Check file size (15MB limit)
+  const maxSize = 15 * 1024 * 1024;
+  if (blob.size > maxSize) {
+    return {
+      isValid: false,
+      error: `Image too large: ${Math.round(blob.size / 1024 / 1024)}MB (max 15MB)`
+    };
   }
   
-  return result;
+  // Check MIME type
+  const supportedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+  if (!supportedTypes.includes(blob.type)) {
+    return {
+      isValid: false,
+      error: `Unsupported image format: ${blob.type}. Supported: JPEG, PNG, WebP`
+    };
+  }
+  
+  return { isValid: true };
 };
 
 serve(async (req) => {
@@ -129,7 +171,7 @@ serve(async (req) => {
       );
     }
 
-    // Update analysis status to 'processing' with better error handling
+    // Update analysis status to 'processing'
     try {
       const { error: updateError } = await supabase
         .from('packing_photos')
@@ -141,13 +183,11 @@ serve(async (req) => {
 
       if (updateError) {
         console.error('❌ Failed to update analysis status:', updateError.message);
-        // Continue processing even if status update fails
       } else {
         console.log('✅ Status updated to processing');
       }
     } catch (statusError) {
       console.error('❌ Status update error:', statusError);
-      // Continue processing
     }
 
     // Retrieve image from storage
@@ -172,33 +212,29 @@ serve(async (req) => {
       );
     }
 
-    // Enhanced image validation with size limits
-    const maxSize = 15 * 1024 * 1024; // 15MB limit
-    console.log('📊 Image size:', { size: imageData.size, maxSize });
-    
-    if (imageData.size > maxSize) {
-      console.error('❌ Image too large:', { size: imageData.size, maxSize });
+    // Validate image format and size
+    const validation = validateImage(imageData);
+    if (!validation.isValid) {
+      console.error('❌ Image validation failed:', validation.error);
       await supabase
         .from('packing_photos')
         .update({ 
           ai_analysis_status: 'failed',
-          description: `Image too large: ${Math.round(imageData.size / 1024 / 1024)}MB (max 15MB)`
+          description: `Image validation failed: ${validation.error}`
         })
         .eq('id', packing_photo_id);
 
       return new Response(
-        JSON.stringify({ error: 'Image too large (max 15MB)' }),
+        JSON.stringify({ error: validation.error }),
         { status: 400, headers: corsHeaders }
       );
     }
 
-    // Convert to base64 with improved memory-safe approach
+    // Convert to base64 using memory-safe approach
     let base64Image: string;
     try {
-      console.log('🔄 Converting image to base64 (chunk-based approach)');
       const arrayBuffer = await imageData.arrayBuffer();
-      base64Image = convertToBase64Chunked(arrayBuffer);
-      console.log('✅ Image converted to base64:', { base64Length: base64Image.length });
+      base64Image = await convertToBase64Safe(arrayBuffer);
     } catch (conversionError) {
       console.error('❌ Image conversion failed:', conversionError.message);
       await supabase
