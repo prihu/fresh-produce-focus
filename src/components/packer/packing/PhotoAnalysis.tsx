@@ -92,40 +92,59 @@ const PhotoAnalysis = ({ packingPhoto, onStatusUpdate }: PhotoAnalysisProps) => 
 
             console.log('✅ Got fresh session token');
 
-            // Step 3: Call edge function with enhanced error handling
-            console.log('🚀 Invoking edge function...');
+            // Step 3: Prepare request body with detailed logging
+            const requestBody = { packing_photo_id: packingPhoto.id };
+            console.log('📤 Preparing request', {
+                photoId: packingPhoto.id,
+                requestBody: requestBody,
+                bodyString: JSON.stringify(requestBody),
+                timestamp: new Date().toISOString()
+            });
+
+            // Step 4: Call edge function with enhanced error handling and logging
+            console.log('🚀 Invoking edge function with detailed request...');
             
             const { data: functionData, error: functionError } = await supabase.functions.invoke('analyze-image', {
-                body: { packing_photo_id: packingPhoto.id },
+                body: requestBody,
                 headers: {
                     'Authorization': `Bearer ${sessionData.session.access_token}`,
                     'Content-Type': 'application/json'
                 }
             });
 
-            console.log('📡 Edge function response:', { functionData, functionError });
+            console.log('📡 Edge function response received', { 
+                functionData, 
+                functionError,
+                photoId: packingPhoto.id,
+                timestamp: new Date().toISOString()
+            });
 
             if (functionError) {
-                console.error('❌ Edge function error:', functionError);
+                console.error('❌ Edge function error details:', {
+                    message: functionError.message,
+                    details: functionError.details,
+                    hint: functionError.hint,
+                    code: functionError.code
+                });
                 throw new Error(`Edge function failed: ${functionError.message}`);
             }
 
             console.log('✅ Edge function invoked successfully');
             
-            // Step 4: Update local state
+            // Step 5: Update local state
             onStatusUpdate({
                 ...packingPhoto,
                 ai_analysis_status: 'pending',
                 description: `Analysis retry started at ${new Date().toISOString()}`
             });
 
-            // Step 5: Set up timeout monitoring (90 seconds)
+            // Step 6: Set up comprehensive monitoring with timeout
             const timeoutId = setTimeout(async () => {
                 console.log('⏰ Analysis timeout reached, checking status...');
                 
                 const { data: photoCheck } = await supabase
                     .from('packing_photos')
-                    .select('ai_analysis_status')
+                    .select('ai_analysis_status, description')
                     .eq('id', packingPhoto.id)
                     .single();
 
