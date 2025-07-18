@@ -8,6 +8,7 @@ import OrderDetailsCard from "./packing/OrderDetailsCard";
 import QualityAssuranceSection from "./packing/QualityAssuranceSection";
 import FinalizePackingSection from "./packing/FinalizePackingSection";
 import { useToast } from "@/hooks/use-toast";
+import { useAnalysisCleanup } from "@/hooks/useAnalysisCleanup";
 
 type Order = Tables<'orders'>;
 type Product = Tables<'products'>;
@@ -44,6 +45,9 @@ const PackingWorkflow = ({ orderId }: { orderId: string }) => {
     const [retryCount, setRetryCount] = useState(0);
     const queryClient = useQueryClient();
     const { toast } = useToast();
+    
+    // Auto-cleanup stuck analyses
+    useAnalysisCleanup();
 
     const { data: order, isLoading: isLoadingOrder } = useQuery<Order>({
         queryKey: ["orderDetails", orderId],

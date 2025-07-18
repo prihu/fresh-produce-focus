@@ -266,11 +266,13 @@ serve(async (req) => {
       );
     }
 
-    console.log('OpenAI API key found, proceeding with analysis', {
+    console.log('🔑 OpenAI API key found, proceeding with analysis', {
       photoId: packing_photo_id,
       userId: user.id,
       keyLength: openaiApiKey.length,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      imageSize: imageData.size,
+      storagePath: photoData.storage_path
     });
 
     // Call OpenAI with enhanced timeout and error handling
@@ -278,10 +280,12 @@ serve(async (req) => {
     const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
 
     try {
-      console.log('Starting AI analysis', {
+      console.log('🚀 Starting AI analysis', {
         photoId: packing_photo_id,
         userId: user.id,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        imageSize: imageData.size,
+        base64Length: base64Image.length
       });
 
       const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -393,13 +397,14 @@ Requirements:
         throw new Error('Failed to save analysis results');
       }
 
-      console.log('AI analysis completed successfully', {
+      console.log('✅ AI analysis completed successfully', {
         photoId: packing_photo_id,
         userId: user.id,
         itemName: item_name,
         freshnessScore: freshness_score,
         qualityScore: quality_score,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        processingTime: Date.now() - new Date().getTime()
       });
 
       return new Response(
@@ -418,10 +423,12 @@ Requirements:
     } catch (aiError: any) {
       clearTimeout(timeoutId);
       
-      console.error('AI analysis failed', {
+      console.error('❌ AI analysis failed', {
         photoId: packing_photo_id,
         userId: user.id,
         error: aiError.message,
+        errorName: aiError.name,
+        stack: aiError.stack,
         timestamp: new Date().toISOString()
       });
 

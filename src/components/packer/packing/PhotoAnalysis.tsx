@@ -64,48 +64,113 @@ const PhotoAnalysis = ({ packingPhoto, onStatusUpdate }: PhotoAnalysisProps) => 
         setIsRetrying(true);
         
         try {
-            console.log('Retrying analysis for photo:', packingPhoto.id);
+            console.log('🔄 Starting retry analysis for photo:', packingPhoto.id);
             
-            // Update status to pending
+            // Step 1: Reset status to pending with timestamp
             const { error: updateError } = await supabase
                 .from('packing_photos')
-                .update({ ai_analysis_status: 'pending' })
+                .update({ 
+                    ai_analysis_status: 'pending',
+                    description: `Analysis retry started at ${new Date().toISOString()}`
+                })
                 .eq('id', packingPhoto.id);
 
             if (updateError) {
+                console.error('❌ Failed to update status:', updateError);
                 throw new Error(`Failed to update status: ${updateError.message}`);
             }
 
-            // Trigger the analysis
+            console.log('✅ Status updated to pending');
+
+            // Step 2: Get fresh session token
+            const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+            
+            if (sessionError || !sessionData.session?.access_token) {
+                console.error('❌ Session error:', sessionError);
+                throw new Error('Authentication failed. Please refresh the page and try again.');
+            }
+
+            console.log('✅ Got fresh session token');
+
+            // Step 3: Call edge function with enhanced error handling
+            console.log('🚀 Invoking edge function...');
+            
             const { data: functionData, error: functionError } = await supabase.functions.invoke('analyze-image', {
                 body: { packing_photo_id: packingPhoto.id },
                 headers: {
-                    'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+                    'Authorization': `Bearer ${sessionData.session.access_token}`,
+                    'Content-Type': 'application/json'
                 }
             });
 
+            console.log('📡 Edge function response:', { functionData, functionError });
+
             if (functionError) {
-                throw new Error(functionError.message);
+                console.error('❌ Edge function error:', functionError);
+                throw new Error(`Edge function failed: ${functionError.message}`);
             }
 
-            console.log('Retry analysis started successfully:', functionData);
+            console.log('✅ Edge function invoked successfully');
             
-            // Update local state
+            // Step 4: Update local state
             onStatusUpdate({
                 ...packingPhoto,
-                ai_analysis_status: 'pending'
+                ai_analysis_status: 'pending',
+                description: `Analysis retry started at ${new Date().toISOString()}`
             });
+
+            // Step 5: Set up timeout monitoring (90 seconds)
+            const timeoutId = setTimeout(async () => {
+                console.log('⏰ Analysis timeout reached, checking status...');
+                
+                const { data: photoCheck } = await supabase
+                    .from('packing_photos')
+                    .select('ai_analysis_status')
+                    .eq('id', packingPhoto.id)
+                    .single();
+
+                if (photoCheck?.ai_analysis_status === 'pending') {
+                    console.log('❌ Analysis stuck in pending, marking as failed');
+                    
+                    await supabase
+                        .from('packing_photos')
+                        .update({ 
+                            ai_analysis_status: 'failed',
+                            description: 'Analysis timed out after 90 seconds. Please try again or contact support.'
+                        })
+                        .eq('id', packingPhoto.id);
+
+                    toast({
+                        title: "Analysis Timeout",
+                        description: "The analysis is taking longer than expected. Please try again.",
+                        variant: "destructive",
+                    });
+                }
+            }, 90000); // 90 second timeout
+
+            // Clear timeout if component unmounts
+            window.addEventListener('beforeunload', () => clearTimeout(timeoutId));
 
             toast({
                 title: "Analysis Restarted",
-                description: "AI analysis is processing your image again. This will take 30-60 seconds.",
+                description: "AI analysis is processing your image. This typically takes 30-60 seconds.",
             });
 
         } catch (error: any) {
-            console.error('Retry analysis error:', error);
+            console.error('❌ Retry analysis failed:', error);
+            
+            // Update status to failed with detailed error
+            await supabase
+                .from('packing_photos')
+                .update({ 
+                    ai_analysis_status: 'failed',
+                    description: `Retry failed: ${error.message}`
+                })
+                .eq('id', packingPhoto.id);
+
             toast({
                 title: "Retry Failed",
-                description: error.message || "Could not restart the analysis. Please try again.",
+                description: error.message || "Could not restart the analysis. Please refresh the page and try again.",
                 variant: "destructive",
             });
         } finally {
@@ -129,13 +194,40 @@ const PhotoAnalysis = ({ packingPhoto, onStatusUpdate }: PhotoAnalysisProps) => 
 
             {packingPhoto.ai_analysis_status === 'pending' && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                        <Clock className="h-4 w-4 text-blue-600 animate-pulse" />
-                        <span className="text-blue-800 font-medium">Analysis in Progress</span>
+                    <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-blue-600 animate-pulse" />
+                            <span className="text-blue-800 font-medium">Analysis in Progress</span>
+                        </div>
+                        <Button
+                            onClick={handleRetryAnalysis}
+                            disabled={isRetrying}
+                            variant="outline"
+                            size="sm"
+                            className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                        >
+                            {isRetrying ? (
+                                <>
+                                    <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                                    Retrying...
+                                </>
+                            ) : (
+                                <>
+                                    <RefreshCw className="h-3 w-3 mr-1" />
+                                    Force Retry
+                                </>
+                            )}
+                        </Button>
                     </div>
                     <p className="text-blue-700 text-sm">
-                        AI is analyzing the image using advanced JPEG processing. This typically takes 30-60 seconds.
+                        AI is analyzing the image using advanced processing. This typically takes 30-60 seconds.
+                        If it's taking longer, try the Force Retry button.
                     </p>
+                    {packingPhoto.description && (
+                        <p className="text-blue-600 text-xs mt-2 font-mono">
+                            Debug: {packingPhoto.description}
+                        </p>
+                    )}
                 </div>
             )}
 
@@ -166,10 +258,21 @@ const PhotoAnalysis = ({ packingPhoto, onStatusUpdate }: PhotoAnalysisProps) => 
                             )}
                         </Button>
                     </div>
-                    <p className="text-red-700 text-sm">
-                        The image analysis failed. This might be due to image format issues or network problems. 
-                        Click "Retry Analysis" to try again with improved processing.
-                    </p>
+                    <div className="text-red-700 text-sm space-y-2">
+                        <p>
+                            The image analysis failed. This might be due to image format issues, network problems, or API service issues.
+                        </p>
+                        {packingPhoto.description && (
+                            <div className="bg-red-100 border border-red-200 rounded p-2">
+                                <p className="text-xs font-mono text-red-800">
+                                    Error Details: {packingPhoto.description}
+                                </p>
+                            </div>
+                        )}
+                        <p className="font-medium">
+                            Click "Retry Analysis" to try again with improved processing.
+                        </p>
+                    </div>
                 </div>
             )}
 
