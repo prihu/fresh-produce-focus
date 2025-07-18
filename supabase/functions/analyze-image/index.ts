@@ -8,6 +8,56 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Smart JSON extraction function to handle markdown-wrapped responses
+const extractJsonFromResponse = (content: string): any => {
+  if (!content || typeof content !== 'string') {
+    throw new Error('Empty or invalid content received from OpenAI');
+  }
+
+  console.log('🔍 Raw OpenAI response content (first 200 chars):', content.substring(0, 200));
+  console.log('📏 Full response length:', content.length);
+
+  // Try to extract JSON from markdown code blocks first
+  const markdownJsonMatch = content.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+  if (markdownJsonMatch) {
+    const extractedJson = markdownJsonMatch[1].trim();
+    console.log('📦 Extracted JSON from markdown:', extractedJson.substring(0, 100) + '...');
+    
+    try {
+      return JSON.parse(extractedJson);
+    } catch (parseError) {
+      console.error('❌ Failed to parse extracted JSON:', parseError.message);
+      throw new Error(`Failed to parse extracted JSON: ${parseError.message}`);
+    }
+  }
+
+  // Try to parse as direct JSON
+  const trimmedContent = content.trim();
+  if (trimmedContent.startsWith('{') && trimmedContent.endsWith('}')) {
+    try {
+      return JSON.parse(trimmedContent);
+    } catch (parseError) {
+      console.error('❌ Failed to parse direct JSON:', parseError.message);
+      throw new Error(`Failed to parse direct JSON: ${parseError.message}`);
+    }
+  }
+
+  // Try to find JSON object within the text
+  const jsonMatch = trimmedContent.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    try {
+      return JSON.parse(jsonMatch[0]);
+    } catch (parseError) {
+      console.error('❌ Failed to parse found JSON object:', parseError.message);
+      throw new Error(`Failed to parse found JSON object: ${parseError.message}`);
+    }
+  }
+
+  // If no JSON found, throw detailed error
+  console.error('❌ No valid JSON found in response. Content sample:', content.substring(0, 500));
+  throw new Error('No valid JSON found in OpenAI response. Response may be malformed or in unexpected format.');
+};
+
 // Memory-safe base64 conversion using Deno standard library
 const convertToBase64Safe = async (arrayBuffer: ArrayBuffer): Promise<string> => {
   try {
@@ -61,6 +111,32 @@ const validateImage = (blob: Blob): { isValid: boolean; error?: string } => {
     };
   }
   
+  return { isValid: true };
+};
+
+// Validate analysis response structure
+const validateAnalysisResponse = (data: any): { isValid: boolean; error?: string } => {
+  if (!data || typeof data !== 'object') {
+    return { isValid: false, error: 'Response is not an object' };
+  }
+
+  const required = ['item_name', 'freshness_score', 'quality_score', 'description'];
+  for (const field of required) {
+    if (!(field in data)) {
+      return { isValid: false, error: `Missing required field: ${field}` };
+    }
+  }
+
+  // Validate score ranges
+  const { freshness_score, quality_score } = data;
+  if (typeof freshness_score !== 'number' || freshness_score < 1 || freshness_score > 10) {
+    return { isValid: false, error: `Invalid freshness_score: ${freshness_score} (must be 1-10)` };
+  }
+  
+  if (typeof quality_score !== 'number' || quality_score < 1 || quality_score > 10) {
+    return { isValid: false, error: `Invalid quality_score: ${quality_score} (must be 1-10)` };
+  }
+
   return { isValid: true };
 };
 
@@ -291,14 +367,9 @@ serve(async (req) => {
               content: [
                 {
                   type: 'text',
-                  text: `You are a produce quality expert for Zepto grocery delivery. Analyze this produce image and provide:
+                  text: `You are a produce quality expert for Zepto grocery delivery. Analyze this produce image and provide your response in PURE JSON format only - no markdown, no code blocks, no extra text.
 
-1. Item identification (what produce item is this?)
-2. Freshness score (1-10, where 10 is perfectly fresh)
-3. Quality score (1-10, where 10 is perfect quality)
-4. Brief description of condition
-
-Respond in this EXACT JSON format:
+Respond with this EXACT JSON structure:
 {
   "item_name": "exact produce name",
   "freshness_score": number,
@@ -310,7 +381,8 @@ Requirements:
 - Freshness/quality scores must be integers between 1-10
 - Only identify actual produce items (fruits, vegetables)
 - If not produce, set item_name to "not produce"
-- Be strict with quality standards for grocery delivery`
+- Be strict with quality standards for grocery delivery
+- Return ONLY the JSON object, nothing else`
                 },
                 {
                   type: 'image_url',
@@ -341,21 +413,23 @@ Requirements:
         if (!content) {
           throw new Error('No analysis content received from OpenAI');
         }
-        analysisData = JSON.parse(content);
+
+        // Use smart JSON extraction to handle markdown-wrapped responses
+        analysisData = extractJsonFromResponse(content);
+        console.log('✅ Successfully extracted JSON:', analysisData);
+
       } catch (parseError) {
         console.error('❌ AI response parsing failed:', parseError.message);
-        throw new Error('Invalid AI response format');
+        throw new Error(`Invalid AI response format: ${parseError.message}`);
       }
 
-      // Validate analysis data
+      // Validate analysis data structure
+      const structureValidation = validateAnalysisResponse(analysisData);
+      if (!structureValidation.isValid) {
+        throw new Error(`Analysis validation failed: ${structureValidation.error}`);
+      }
+
       const { item_name, freshness_score, quality_score, description } = analysisData;
-      if (!item_name || typeof freshness_score !== 'number' || typeof quality_score !== 'number') {
-        throw new Error('Missing required analysis fields');
-      }
-
-      if (freshness_score < 1 || freshness_score > 10 || quality_score < 1 || quality_score > 10) {
-        throw new Error('Invalid score ranges');
-      }
 
       console.log('✅ Analysis completed successfully:', {
         itemName: item_name,
