@@ -71,7 +71,7 @@ const PackingWorkflow = ({ orderId }: { orderId: string }) => {
         }
     }, [initialPackingPhoto]);
 
-    // Enhanced real-time subscription with better error handling and automatic status management
+    // Enhanced real-time subscription with better error handling
     const setupRealtimeSubscription = useCallback(() => {
         if (!packingPhoto?.id) return;
 
@@ -103,14 +103,12 @@ const PackingWorkflow = ({ orderId }: { orderId: string }) => {
                             description: "Quality scores have been generated.",
                         });
 
-                        // Automatically update order status to 'quality_checked' when analysis completes
-                        // Only if quality and freshness scores are acceptable (>= 6)
+                        // Automatically update order status when analysis completes with good scores
                         const qualityScore = updatedPhoto.quality_score ?? 0;
                         const freshnessScore = updatedPhoto.freshness_score ?? 0;
                         const isProduceDetected = updatedPhoto.item_name && 
                             !updatedPhoto.item_name.toLowerCase().includes('not') &&
-                            !updatedPhoto.item_name.toLowerCase().includes('unidentified') &&
-                            !updatedPhoto.item_name.toLowerCase().includes('unclear');
+                            !updatedPhoto.item_name.toLowerCase().includes('unidentified');
 
                         if (qualityScore >= 6 && freshnessScore >= 6 && isProduceDetected) {
                             try {
@@ -119,11 +117,7 @@ const PackingWorkflow = ({ orderId }: { orderId: string }) => {
                                     .update({ status: 'quality_checked' })
                                     .eq('id', orderId);
 
-                                if (statusError) {
-                                    console.error('Failed to update order status to quality_checked:', statusError);
-                                } else {
-                                    console.log('Order status updated to quality_checked');
-                                    // Invalidate order query to refresh UI
+                                if (!statusError) {
                                     queryClient.invalidateQueries({ queryKey: ["orderDetails", orderId] });
                                 }
                             } catch (error) {
@@ -133,7 +127,7 @@ const PackingWorkflow = ({ orderId }: { orderId: string }) => {
                     } else if (updatedPhoto.ai_analysis_status === 'failed') {
                         toast({
                             title: "Analysis Failed",
-                            description: "Please try uploading the image again.",
+                            description: "Please try uploading the image again or use the retry button.",
                             variant: "destructive",
                         });
                     }
@@ -147,7 +141,7 @@ const PackingWorkflow = ({ orderId }: { orderId: string }) => {
                     setConnectionStatus('disconnected');
                     console.error('Real-time subscription error:', status);
                     
-                    // Retry connection with exponential backoff
+                    // Retry connection with exponential backoff (max 3 attempts)
                     if (retryCount < 3) {
                         const delay = Math.pow(2, retryCount) * 1000;
                         setTimeout(() => {
@@ -168,7 +162,7 @@ const PackingWorkflow = ({ orderId }: { orderId: string }) => {
         return cleanup;
     }, [setupRealtimeSubscription]);
 
-    // Enhanced backup polling with better error handling
+    // Enhanced backup polling for disconnected state
     useEffect(() => {
         if (connectionStatus === 'disconnected' && packingPhoto?.ai_analysis_status === 'pending') {
             console.log('Real-time disconnected, falling back to polling');
@@ -224,11 +218,7 @@ const PackingWorkflow = ({ orderId }: { orderId: string }) => {
                 .update({ status: 'pending_packing' })
                 .eq('id', orderId);
 
-            if (statusError) {
-                console.error('Failed to revert order status to pending_packing:', statusError);
-            } else {
-                console.log('Order status reverted to pending_packing');
-                // Invalidate order query to refresh UI
+            if (!statusError) {
                 queryClient.invalidateQueries({ queryKey: ["orderDetails", orderId] });
             }
         } catch (error) {

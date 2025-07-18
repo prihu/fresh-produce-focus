@@ -7,6 +7,21 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Enhanced chunk-based base64 conversion to prevent memory overflow
+const convertToBase64Chunked = (arrayBuffer: ArrayBuffer): string => {
+  const uint8Array = new Uint8Array(arrayBuffer);
+  let result = '';
+  const chunkSize = 8192; // 8KB chunks to prevent memory issues
+  
+  for (let i = 0; i < uint8Array.length; i += chunkSize) {
+    const chunk = uint8Array.slice(i, i + chunkSize);
+    const chunkString = Array.from(chunk).map(byte => String.fromCharCode(byte)).join('');
+    result += btoa(chunkString);
+  }
+  
+  return result;
+};
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -22,17 +37,12 @@ serve(async (req) => {
     console.log('🚀 Analyze-image function called', {
       timestamp: new Date().toISOString(),
       method: req.method,
-      headers: Object.fromEntries(req.headers.entries())
     });
 
-    // Enhanced request validation and rate limiting
+    // Enhanced request validation
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      console.error('❌ Unauthorized request - missing auth header', {
-        timestamp: new Date().toISOString(),
-        ip: req.headers.get('x-forwarded-for') || 'unknown'
-      });
-      
+      console.error('❌ Unauthorized request - missing auth header');
       return new Response(
         JSON.stringify({ error: 'Authorization required' }),
         { status: 401, headers: corsHeaders }
@@ -45,110 +55,45 @@ serve(async (req) => {
     );
 
     if (userError || !user) {
-      console.error('❌ Authentication failed', {
-        error: userError?.message,
-        timestamp: new Date().toISOString()
-      });
-      
+      console.error('❌ Authentication failed:', userError?.message);
       return new Response(
         JSON.stringify({ error: 'Invalid authentication' }),
         { status: 401, headers: corsHeaders }
       );
     }
 
-    console.log('✅ User authenticated', {
-      userId: user.id,
-      timestamp: new Date().toISOString()
-    });
+    console.log('✅ User authenticated:', { userId: user.id });
 
-    // Enhanced request body validation with better error handling
+    // Parse request body
     let requestBody;
-    let requestText = '';
-    
     try {
-      requestText = await req.text();
-      console.log('📥 Raw request body received', {
-        userId: user.id,
-        bodyLength: requestText.length,
-        bodyPreview: requestText.substring(0, 200),
-        isEmpty: !requestText.trim(),
-        timestamp: new Date().toISOString()
-      });
-
+      const requestText = await req.text();
       if (!requestText.trim()) {
-        console.error('❌ Empty request body detected', {
-          userId: user.id,
-          contentType: req.headers.get('content-type'),
-          timestamp: new Date().toISOString()
-        });
-        
         return new Response(
-          JSON.stringify({ 
-            error: 'Request body is empty. Please provide packing_photo_id.',
-            debug: {
-              contentType: req.headers.get('content-type'),
-              bodyLength: requestText.length
-            }
-          }),
+          JSON.stringify({ error: 'Request body is empty' }),
           { status: 400, headers: corsHeaders }
         );
       }
-
       requestBody = JSON.parse(requestText);
-      console.log('✅ Request body parsed successfully', {
-        userId: user.id,
-        parsedKeys: Object.keys(requestBody),
-        timestamp: new Date().toISOString()
-      });
-
     } catch (parseError) {
-      console.error('❌ Request body parsing failed', {
-        userId: user.id,
-        error: parseError.message,
-        rawBody: requestText,
-        timestamp: new Date().toISOString()
-      });
-      
+      console.error('❌ Request body parsing failed:', parseError.message);
       return new Response(
-        JSON.stringify({ 
-          error: 'Invalid JSON in request body',
-          debug: {
-            parseError: parseError.message,
-            receivedBody: requestText.substring(0, 500)
-          }
-        }),
+        JSON.stringify({ error: 'Invalid JSON in request body' }),
         { status: 400, headers: corsHeaders }
       );
     }
 
     const { packing_photo_id } = requestBody;
-
     if (!packing_photo_id) {
-      console.error('❌ Missing packing_photo_id', {
-        userId: user.id,
-        receivedKeys: Object.keys(requestBody),
-        timestamp: new Date().toISOString()
-      });
-      
       return new Response(
-        JSON.stringify({ 
-          error: 'Missing packing_photo_id',
-          debug: {
-            receivedKeys: Object.keys(requestBody),
-            requestBody: requestBody
-          }
-        }),
+        JSON.stringify({ error: 'Missing packing_photo_id' }),
         { status: 400, headers: corsHeaders }
       );
     }
 
-    console.log('📷 Processing photo analysis request', {
-      userId: user.id,
-      photoId: packing_photo_id,
-      timestamp: new Date().toISOString()
-    });
+    console.log('📷 Processing photo analysis request:', { photoId: packing_photo_id });
 
-    // Enhanced security: Verify user has access to this photo
+    // Verify user has access to this photo
     const { data: photoData, error: photoError } = await supabase
       .from('packing_photos')
       .select(`
@@ -161,13 +106,7 @@ serve(async (req) => {
       .single();
 
     if (photoError || !photoData) {
-      console.error('❌ Photo access validation failed', {
-        userId: user.id,
-        photoId: packing_photo_id,
-        error: photoError?.message,
-        timestamp: new Date().toISOString()
-      });
-      
+      console.error('❌ Photo access validation failed:', photoError?.message);
       return new Response(
         JSON.stringify({ error: 'Photo not found or access denied' }),
         { status: 404, headers: corsHeaders }
@@ -176,72 +115,49 @@ serve(async (req) => {
 
     // Verify user owns this order or is admin
     const isOwner = photoData.orders.packer_id === user.id;
-    
-    // Check if user is admin
     const { data: userRoles } = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id);
-    
     const isAdmin = userRoles?.some(r => r.role === 'admin');
 
     if (!isOwner && !isAdmin) {
-      console.warn('❌ Unauthorized photo analysis attempt', {
-        userId: user.id,
-        photoId: packing_photo_id,
-        orderPackerId: photoData.orders.packer_id,
-        timestamp: new Date().toISOString()
-      });
-      
+      console.warn('❌ Unauthorized photo analysis attempt');
       return new Response(
         JSON.stringify({ error: 'Access denied' }),
         { status: 403, headers: corsHeaders }
       );
     }
 
-    console.log('✅ Access verified, updating status to processing', {
-      userId: user.id,
-      photoId: packing_photo_id,
-      timestamp: new Date().toISOString()
-    });
+    // Update analysis status to 'processing' with better error handling
+    try {
+      const { error: updateError } = await supabase
+        .from('packing_photos')
+        .update({ 
+          ai_analysis_status: 'processing',
+          description: `Analysis started at ${new Date().toISOString()}`
+        })
+        .eq('id', packing_photo_id);
 
-    // Update analysis status to 'processing' with error handling
-    const { error: updateError } = await supabase
-      .from('packing_photos')
-      .update({ 
-        ai_analysis_status: 'processing',
-        description: `Analysis started at ${new Date().toISOString()}`
-      })
-      .eq('id', packing_photo_id);
-
-    if (updateError) {
-      console.error('❌ Failed to update analysis status', {
-        photoId: packing_photo_id,
-        error: updateError.message,
-        timestamp: new Date().toISOString()
-      });
+      if (updateError) {
+        console.error('❌ Failed to update analysis status:', updateError.message);
+        // Continue processing even if status update fails
+      } else {
+        console.log('✅ Status updated to processing');
+      }
+    } catch (statusError) {
+      console.error('❌ Status update error:', statusError);
+      // Continue processing
     }
 
-    // Enhanced image retrieval with proper error handling
-    console.log('📥 Retrieving image from storage', {
-      photoId: packing_photo_id,
-      storagePath: photoData.storage_path,
-      timestamp: new Date().toISOString()
-    });
-
+    // Retrieve image from storage
+    console.log('📥 Retrieving image from storage:', { storagePath: photoData.storage_path });
     const { data: imageData, error: storageError } = await supabase.storage
       .from('packing-photos')
       .download(photoData.storage_path);
 
     if (storageError || !imageData) {
-      console.error('❌ Failed to retrieve image', {
-        photoId: packing_photo_id,
-        storagePath: photoData.storage_path,
-        error: storageError?.message,
-        timestamp: new Date().toISOString()
-      });
-
-      // Update status to failed
+      console.error('❌ Failed to retrieve image:', storageError?.message);
       await supabase
         .from('packing_photos')
         .update({ 
@@ -256,22 +172,12 @@ serve(async (req) => {
       );
     }
 
-    console.log('✅ Image retrieved successfully', {
-      photoId: packing_photo_id,
-      imageSize: imageData.size,
-      timestamp: new Date().toISOString()
-    });
-
-    // Enhanced image validation
+    // Enhanced image validation with size limits
     const maxSize = 15 * 1024 * 1024; // 15MB limit
+    console.log('📊 Image size:', { size: imageData.size, maxSize });
+    
     if (imageData.size > maxSize) {
-      console.error('❌ Image too large', {
-        photoId: packing_photo_id,
-        size: imageData.size,
-        maxSize: maxSize,
-        timestamp: new Date().toISOString()
-      });
-
+      console.error('❌ Image too large:', { size: imageData.size, maxSize });
       await supabase
         .from('packing_photos')
         .update({ 
@@ -286,31 +192,15 @@ serve(async (req) => {
       );
     }
 
-    // Convert to base64 with error handling
+    // Convert to base64 with improved memory-safe approach
     let base64Image: string;
     try {
-      console.log('🔄 Converting image to base64', {
-        photoId: packing_photo_id,
-        timestamp: new Date().toISOString()
-      });
-
+      console.log('🔄 Converting image to base64 (chunk-based approach)');
       const arrayBuffer = await imageData.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
-      base64Image = btoa(String.fromCharCode(...uint8Array));
-      
-      console.log('✅ Image converted to base64', {
-        photoId: packing_photo_id,
-        base64Length: base64Image.length,
-        timestamp: new Date().toISOString()
-      });
-
+      base64Image = convertToBase64Chunked(arrayBuffer);
+      console.log('✅ Image converted to base64:', { base64Length: base64Image.length });
     } catch (conversionError) {
-      console.error('❌ Image conversion failed', {
-        photoId: packing_photo_id,
-        error: conversionError.message,
-        timestamp: new Date().toISOString()
-      });
-
+      console.error('❌ Image conversion failed:', conversionError.message);
       await supabase
         .from('packing_photos')
         .update({ 
@@ -325,15 +215,10 @@ serve(async (req) => {
       );
     }
 
-    // Enhanced OpenAI API call with timeout and retry logic
+    // OpenAI API call with enhanced error handling
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
     if (!openaiApiKey) {
-      console.error('❌ OpenAI API key not configured', {
-        photoId: packing_photo_id,
-        userId: user.id,
-        timestamp: new Date().toISOString()
-      });
-      
+      console.error('❌ OpenAI API key not configured');
       await supabase
         .from('packing_photos')
         .update({ 
@@ -343,18 +228,14 @@ serve(async (req) => {
         .eq('id', packing_photo_id);
 
       return new Response(
-        JSON.stringify({ error: 'AI service unavailable - API key not configured' }),
+        JSON.stringify({ error: 'AI service unavailable' }),
         { status: 503, headers: corsHeaders }
       );
     }
 
-    console.log('🤖 Starting OpenAI analysis', {
-      photoId: packing_photo_id,
-      userId: user.id,
-      timestamp: new Date().toISOString()
-    });
+    console.log('🤖 Starting OpenAI analysis');
 
-    // Call OpenAI with enhanced timeout and error handling
+    // Call OpenAI with timeout and retry logic
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
 
@@ -411,13 +292,6 @@ Requirements:
 
       clearTimeout(timeoutId);
 
-      console.log('📡 OpenAI API response received', {
-        photoId: packing_photo_id,
-        status: openaiResponse.status,
-        statusText: openaiResponse.statusText,
-        timestamp: new Date().toISOString()
-      });
-
       if (!openaiResponse.ok) {
         const errorText = await openaiResponse.text();
         throw new Error(`OpenAI API error: ${openaiResponse.status} - ${errorText}`);
@@ -431,27 +305,14 @@ Requirements:
         if (!content) {
           throw new Error('No analysis content received from OpenAI');
         }
-
-        console.log('🔍 Parsing AI response', {
-          photoId: packing_photo_id,
-          rawContent: content,
-          timestamp: new Date().toISOString()
-        });
-
         analysisData = JSON.parse(content);
       } catch (parseError) {
-        console.error('❌ AI response parsing failed', {
-          photoId: packing_photo_id,
-          response: aiResult.choices?.[0]?.message?.content,
-          error: parseError.message,
-          timestamp: new Date().toISOString()
-        });
+        console.error('❌ AI response parsing failed:', parseError.message);
         throw new Error('Invalid AI response format');
       }
 
-      // Enhanced data validation
+      // Validate analysis data
       const { item_name, freshness_score, quality_score, description } = analysisData;
-
       if (!item_name || typeof freshness_score !== 'number' || typeof quality_score !== 'number') {
         throw new Error('Missing required analysis fields');
       }
@@ -460,15 +321,13 @@ Requirements:
         throw new Error('Invalid score ranges');
       }
 
-      console.log('✅ Analysis data validated', {
-        photoId: packing_photo_id,
+      console.log('✅ Analysis completed successfully:', {
         itemName: item_name,
         freshnessScore: freshness_score,
-        qualityScore: quality_score,
-        timestamp: new Date().toISOString()
+        qualityScore: quality_score
       });
 
-      // Update database with analysis results and enhanced logging
+      // Update database with analysis results
       const { error: finalUpdateError } = await supabase
         .from('packing_photos')
         .update({
@@ -481,22 +340,9 @@ Requirements:
         .eq('id', packing_photo_id);
 
       if (finalUpdateError) {
-        console.error('❌ Failed to save analysis results', {
-          photoId: packing_photo_id,
-          error: finalUpdateError.message,
-          timestamp: new Date().toISOString()
-        });
+        console.error('❌ Failed to save analysis results:', finalUpdateError.message);
         throw new Error('Failed to save analysis results');
       }
-
-      console.log('🎉 AI analysis completed successfully', {
-        photoId: packing_photo_id,
-        userId: user.id,
-        itemName: item_name,
-        freshnessScore: freshness_score,
-        qualityScore: quality_score,
-        timestamp: new Date().toISOString()
-      });
 
       return new Response(
         JSON.stringify({ 
@@ -513,14 +359,7 @@ Requirements:
 
     } catch (aiError: any) {
       clearTimeout(timeoutId);
-      
-      console.error('❌ AI analysis failed', {
-        photoId: packing_photo_id,
-        userId: user.id,
-        error: aiError.message,
-        errorName: aiError.name,
-        timestamp: new Date().toISOString()
-      });
+      console.error('❌ AI analysis failed:', aiError.message);
 
       // Update status to failed with cleanup
       await supabase
@@ -542,12 +381,7 @@ Requirements:
     }
 
   } catch (error: any) {
-    console.error('❌ Function error', {
-      error: error.message,
-      stack: error.stack,
-      timestamp: new Date().toISOString()
-    });
-
+    console.error('❌ Function error:', error.message);
     return new Response(
       JSON.stringify({ 
         error: 'Internal server error',

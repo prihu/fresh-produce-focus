@@ -1,9 +1,10 @@
+
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 /**
  * Hook to automatically clean up stuck image analyses
- * Runs on component mount to check for analyses stuck in pending state
+ * Runs on component mount to check for analyses stuck in pending/processing state
  */
 export const useAnalysisCleanup = () => {
   useEffect(() => {
@@ -11,14 +12,14 @@ export const useAnalysisCleanup = () => {
       try {
         console.log('🧹 Running analysis cleanup check...');
         
-        // Find analyses that have been pending for more than 5 minutes
+        // Find analyses that have been stuck for more than 5 minutes
         const fiveMinutesAgo = new Date();
         fiveMinutesAgo.setMinutes(fiveMinutesAgo.getMinutes() - 5);
         
         const { data: stuckPhotos, error } = await supabase
           .from('packing_photos')
-          .select('id, created_at, ai_analysis_status')
-          .eq('ai_analysis_status', 'pending')
+          .select('id, created_at, ai_analysis_status, description')
+          .or('ai_analysis_status.eq.pending,ai_analysis_status.eq.processing')
           .lt('created_at', fiveMinutesAgo.toISOString());
 
         if (error) {
@@ -29,12 +30,12 @@ export const useAnalysisCleanup = () => {
         if (stuckPhotos && stuckPhotos.length > 0) {
           console.log(`🔍 Found ${stuckPhotos.length} stuck analyses, cleaning up...`);
           
-          // Mark them as failed with cleanup message
+          // Reset them to failed status with cleanup message
           const { error: updateError } = await supabase
             .from('packing_photos')
             .update({
               ai_analysis_status: 'failed',
-              description: 'Analysis was stuck in pending state and has been automatically reset. Please retry the analysis.'
+              description: 'Analysis was stuck and has been automatically reset. Please retry the analysis.'
             })
             .in('id', stuckPhotos.map(photo => photo.id));
 
