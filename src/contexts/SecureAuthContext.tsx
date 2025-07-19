@@ -28,12 +28,14 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
   const [userRoles, setUserRoles] = useState<string[]>([]);
   const { toast } = useToast();
 
-  // Enhanced role fetching with retry mechanism and better error handling
+  // Enhanced role fetching with reduced retries and shorter delays
   const fetchUserRoles = async (userId: string, retryCount = 0): Promise<string[]> => {
-    const maxRetries = 3;
-    const retryDelay = Math.min(1000 * Math.pow(2, retryCount), 5000); // Exponential backoff, max 5s
+    const maxRetries = 1; // Reduced from 3 to 1
+    const retryDelay = 1000; // Fixed 1 second delay instead of exponential backoff
     
     try {
+      console.log(`Fetching user roles (attempt ${retryCount + 1})...`);
+      
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
@@ -43,32 +45,34 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
         throw new Error(`Failed to fetch user roles: ${error.message}`);
       }
 
+      console.log('User roles fetched successfully:', data?.map(r => r.role) || []);
       return data?.map(r => r.role) || [];
     } catch (error: any) {
       console.error(`Role fetch attempt ${retryCount + 1} failed:`, error);
       
-      // For network errors or temporary issues, retry
+      // For network errors or temporary issues, retry once
       if (retryCount < maxRetries && (
         error.message.includes('network') ||
         error.message.includes('timeout') ||
         error.message.includes('503') ||
         error.message.includes('502')
       )) {
+        console.log(`Retrying role fetch in ${retryDelay}ms...`);
         await new Promise(resolve => setTimeout(resolve, retryDelay));
         return fetchUserRoles(userId, retryCount + 1);
       }
       
       // Log security audit event for persistent role fetch failures
       if (retryCount >= maxRetries) {
-        console.error('Critical: User role verification failed after all retries', {
+        console.error('Role verification failed after retries', {
           userId,
           error: error.message,
           timestamp: new Date().toISOString()
         });
         
         toast({
-          title: "Authentication Issue",
-          description: "Unable to verify user permissions. Please refresh the page.",
+          title: "Permission Check Failed",
+          description: "Unable to verify user permissions. Some features may be limited.",
           variant: "destructive",
         });
       }
@@ -77,7 +81,7 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
-  // Enhanced session handling with comprehensive error logging
+  // Enhanced session handling with timeout protection
   const handleAuthStateChange = async (event: string, newSession: Session | null) => {
     try {
       console.log('Auth event:', event, { 
@@ -89,8 +93,17 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
       setUser(newSession?.user ?? null);
 
       if (newSession?.user) {
-        // Enhanced user role fetching with audit logging
-        const roles = await fetchUserRoles(newSession.user.id);
+        console.log('Verifying permissions...');
+        // Enhanced user role fetching with timeout protection
+        const rolesFetchPromise = fetchUserRoles(newSession.user.id);
+        const timeoutPromise = new Promise<string[]>((resolve) => {
+          setTimeout(() => {
+            console.warn('Role fetch timed out, proceeding with limited access');
+            resolve([]);
+          }, 5000); // 5 second timeout for role fetching
+        });
+
+        const roles = await Promise.race([rolesFetchPromise, timeoutPromise]);
         setUserRoles(roles);
         
         // Log successful authentication
@@ -127,30 +140,58 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
         variant: "destructive",
       });
     } finally {
+      // Always clear loading state
       setLoading(false);
     }
   };
 
   useEffect(() => {
     let mounted = true;
+    let initializationTimeout: NodeJS.Timeout;
 
-    // Get initial session with enhanced error handling
+    // Add 10-second timeout for auth initialization
+    initializationTimeout = setTimeout(() => {
+      if (mounted && loading) {
+        console.warn('Auth initialization timed out after 10 seconds');
+        setLoading(false);
+        toast({
+          title: "Connection Issue",
+          description: "Taking longer than expected. You may have limited access.",
+          variant: "destructive",
+        });
+      }
+    }, 10000);
+
+    // Get initial session with enhanced error handling and timeout
     const initializeAuth = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
+        console.log('Initializing authentication...');
         
-        if (error) {
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise<{ data: { session: Session | null }, error: any }>((resolve) => {
+          setTimeout(() => {
+            console.warn('Session fetch timed out');
+            resolve({ data: { session: null }, error: { message: 'Timeout' } });
+          }, 8000); // 8 second timeout for session fetch
+        });
+
+        const { data: { session }, error } = await Promise.race([sessionPromise, timeoutPromise]);
+        
+        if (error && error.message !== 'Timeout') {
           throw new Error(`Session initialization failed: ${error.message}`);
         }
         
         if (mounted) {
           await handleAuthStateChange('INITIAL_SESSION', session);
+          // Clear the timeout since we completed successfully
+          clearTimeout(initializationTimeout);
         }
       } catch (error: any) {
         console.error('Auth initialization error:', error);
         
         if (mounted) {
           setLoading(false);
+          clearTimeout(initializationTimeout);
           toast({
             title: "Startup Error",
             description: "Failed to initialize authentication. Please refresh the page.",
@@ -173,6 +214,7 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
 
     return () => {
       mounted = false;
+      clearTimeout(initializationTimeout);
       subscription.unsubscribe();
     };
   }, []);
