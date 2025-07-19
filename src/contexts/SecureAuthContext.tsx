@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -30,16 +29,14 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
   const [userRoles, setUserRoles] = useState<string[]>([]);
   const { toast } = useToast();
 
-  // Enhanced role fetching with reduced retries and shorter delays
+  // Simplified role fetching without internal rolesLoading management
   const fetchUserRoles = async (userId: string, retryCount = 0): Promise<string[]> => {
-    const maxRetries = 1; // Reduced from 3 to 1
-    const retryDelay = 1000; // Fixed 1 second delay instead of exponential backoff
-    
-    // Set rolesLoading to true when starting role fetch
-    setRolesLoading(true);
+    const maxRetries = 1;
+    const retryDelay = 1000;
     
     try {
-      console.log(`Fetching user roles (attempt ${retryCount + 1})...`);
+      console.log(`Fetching user roles for user ${userId} (attempt ${retryCount + 1})...`);
+      console.log('Current auth.uid():', (await supabase.auth.getUser()).data.user?.id);
       
       const { data, error } = await supabase
         .from('user_roles')
@@ -50,12 +47,13 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
         throw new Error(`Failed to fetch user roles: ${error.message}`);
       }
 
-      console.log('User roles fetched successfully:', data?.map(r => r.role) || []);
-      return data?.map(r => r.role) || [];
+      const roles = data?.map(r => r.role) || [];
+      console.log('User roles fetched successfully:', roles);
+      return roles;
     } catch (error: any) {
       console.error(`Role fetch attempt ${retryCount + 1} failed:`, error);
       
-      // For network errors or temporary issues, retry once
+      // Retry for network errors or temporary issues
       if (retryCount < maxRetries && (
         error.message.includes('network') ||
         error.message.includes('timeout') ||
@@ -83,13 +81,10 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
       }
       
       return []; // Fail closed - no roles if we can't verify
-    } finally {
-      // Always set rolesLoading to false when role fetch completes
-      setRolesLoading(false);
     }
   };
 
-  // Enhanced session handling with timeout protection
+  // Centralized auth state change handler with proper rolesLoading management
   const handleAuthStateChange = async (event: string, newSession: Session | null) => {
     try {
       console.log('Auth event:', event, { 
@@ -97,7 +92,7 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
         timestamp: new Date().toISOString()
       });
 
-      // Handle token refresh events
+      // Handle token refresh events - no role refetch needed
       if (event === 'TOKEN_REFRESHED') {
         console.log('Token refreshed successfully', {
           userId: newSession?.user?.id,
@@ -105,7 +100,8 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
         });
         setSession(newSession);
         setUser(newSession?.user ?? null);
-        return; // No need to refetch roles for token refresh
+        // Don't refetch roles for token refresh - keep existing roles
+        return;
       }
 
       if (event === 'TOKEN_REFRESH_FAILED') {
@@ -124,40 +120,51 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
         setSession(null);
         setUser(null);
         setUserRoles([]);
-        setRolesLoading(false);
         return;
       }
 
+      // Update session and user for all other events
       setSession(newSession);
       setUser(newSession?.user ?? null);
 
       if (newSession?.user) {
-        console.log('Verifying permissions...');
-        // Enhanced user role fetching with timeout protection
-        const rolesFetchPromise = fetchUserRoles(newSession.user.id);
-        const timeoutPromise = new Promise<string[]>((resolve) => {
-          setTimeout(() => {
-            console.warn('Role fetch timed out, proceeding with limited access');
-            setRolesLoading(false); // Ensure rolesLoading is set to false on timeout
-            resolve([]);
-          }, 5000); // 5 second timeout for role fetching
-        });
+        console.log('User authenticated, fetching roles...');
+        // Set rolesLoading to true ONLY when we need to fetch roles
+        setRolesLoading(true);
+        
+        try {
+          // Simplified role fetching with single timeout
+          const timeoutPromise = new Promise<string[]>((resolve) => {
+            setTimeout(() => {
+              console.warn('Role fetch timed out after 5 seconds');
+              resolve([]);
+            }, 5000);
+          });
 
-        const roles = await Promise.race([rolesFetchPromise, timeoutPromise]);
-        setUserRoles(roles);
-        
-        // Log successful authentication
-        console.log('User authenticated successfully', {
-          userId: newSession.user.id,
-          email: newSession.user.email,
-          roles: roles,
-          timestamp: new Date().toISOString()
-        });
+          const roles = await Promise.race([
+            fetchUserRoles(newSession.user.id),
+            timeoutPromise
+          ]);
+          
+          setUserRoles(roles);
+          
+          console.log('User authenticated successfully', {
+            userId: newSession.user.id,
+            email: newSession.user.email,
+            roles: roles,
+            timestamp: new Date().toISOString()
+          });
+        } catch (error: any) {
+          console.error('Error fetching user roles:', error);
+          setUserRoles([]);
+        } finally {
+          // Always clear rolesLoading after role fetch attempt
+          setRolesLoading(false);
+        }
       } else {
+        // No user - clear roles immediately
         setUserRoles([]);
-        setRolesLoading(false); // Ensure rolesLoading is false when no user
         
-        // Log sign-out events
         if (event === 'SIGNED_OUT') {
           console.log('User signed out', {
             timestamp: new Date().toISOString()
@@ -167,7 +174,6 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
     } catch (error: any) {
       console.error('Critical auth state change error:', error);
       
-      // Log authentication failures for security monitoring
       console.error('Authentication state change failed', {
         event,
         error: error.message,
@@ -181,23 +187,26 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
         variant: "destructive",
       });
       
-      setRolesLoading(false); // Ensure rolesLoading is false on error
+      // Clear roles on any error
+      setUserRoles([]);
     } finally {
-      // Always clear loading state
+      // Always clear loading and rolesLoading states
       setLoading(false);
+      setRolesLoading(false);
     }
   };
 
   useEffect(() => {
     let mounted = true;
     let initializationTimeout: NodeJS.Timeout;
+    let rolesLoadingTimeout: NodeJS.Timeout;
 
     // Add 10-second timeout for auth initialization
     initializationTimeout = setTimeout(() => {
       if (mounted && loading) {
         console.warn('Auth initialization timed out after 10 seconds');
         setLoading(false);
-        setRolesLoading(false); // Ensure rolesLoading is false on timeout
+        setRolesLoading(false);
         toast({
           title: "Connection Issue",
           description: "Taking longer than expected. You may have limited access.",
@@ -206,7 +215,14 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
       }
     }, 10000);
 
-    // Get initial session with enhanced error handling and timeout
+    // Add safety net for rolesLoading - never let it stay true for more than 15 seconds
+    rolesLoadingTimeout = setTimeout(() => {
+      if (mounted && rolesLoading) {
+        console.warn('Roles loading timed out after 15 seconds, forcing reset');
+        setRolesLoading(false);
+      }
+    }, 15000);
+
     const initializeAuth = async () => {
       try {
         console.log('Initializing authentication...');
@@ -216,7 +232,7 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
           setTimeout(() => {
             console.warn('Session fetch timed out');
             resolve({ data: { session: null }, error: { message: 'Timeout' } });
-          }, 8000); // 8 second timeout for session fetch
+          }, 8000);
         });
 
         const { data: { session }, error } = await Promise.race([sessionPromise, timeoutPromise]);
@@ -227,7 +243,6 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
         
         if (mounted) {
           await handleAuthStateChange('INITIAL_SESSION', session);
-          // Clear the timeout since we completed successfully
           clearTimeout(initializationTimeout);
         }
       } catch (error: any) {
@@ -235,7 +250,7 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
         
         if (mounted) {
           setLoading(false);
-          setRolesLoading(false); // Ensure rolesLoading is false on error
+          setRolesLoading(false);
           clearTimeout(initializationTimeout);
           toast({
             title: "Startup Error",
@@ -248,7 +263,6 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
 
     initializeAuth();
 
-    // Enhanced auth state listener with error handling
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (mounted) {
@@ -260,9 +274,10 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
     return () => {
       mounted = false;
       clearTimeout(initializationTimeout);
+      clearTimeout(rolesLoadingTimeout);
       subscription.unsubscribe();
     };
-  }, []);
+  }, []); // Remove rolesLoading from dependency array
 
   // Enhanced role checking with security logging
   const hasRole = (role: string): boolean => {
@@ -316,6 +331,7 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
       setUser(null);
       setSession(null);
       setUserRoles([]);
+      setRolesLoading(false);
       
       toast({
         title: "Signed Out",
