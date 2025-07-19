@@ -16,8 +16,6 @@ const OrderDetailsCard = ({ order, product }: OrderDetailsCardProps) => (
             <CardTitle className="text-slate-900">Packing: Order #{order.order_number}</CardTitle>
         </CardHeader>
         <CardContent className="bg-white">
-            <p className="text-slate-800"><strong>Product:</strong> {product.name}</p>
-            <p className="text-slate-800"><strong>Price:</strong> ${product.price}</p>
         </CardContent>
     </Card>
 );
