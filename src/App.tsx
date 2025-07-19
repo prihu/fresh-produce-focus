@@ -13,7 +13,7 @@ import HealthCheck from "./pages/HealthCheck";
 
 const queryClient = new QueryClient();
 
-// Protected Route component with role-based access
+// Protected Route component with role-based access and proper loading states
 const ProtectedRoute = ({ 
   children, 
   requiredRole 
@@ -21,8 +21,9 @@ const ProtectedRoute = ({
   children: React.ReactNode;
   requiredRole?: 'admin' | 'packer' | 'user';
 }) => {
-  const { user, userRole, isLoading, hasRole } = useSecureAuth();
+  const { user, userRole, isLoading, rolesLoading, hasRole } = useSecureAuth();
 
+  // Show loading while auth is initializing
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -31,17 +32,31 @@ const ProtectedRoute = ({
     );
   }
 
+  // Redirect to auth if no user
   if (!user) {
     return <Navigate to="/auth" replace />;
   }
 
+  // Show loading while roles are being fetched
+  if (rolesLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-fresh-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading permissions...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Check role-based access only after roles have finished loading
   if (requiredRole && !hasRole(requiredRole)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
           <p className="text-gray-600">You do not have permission to access this page.</p>
-          <p className="text-sm text-gray-500 mt-2">Your role: {userRole || 'Unknown'}</p>
+          <p className="text-sm text-gray-500 mt-2">Your role: {userRole || 'No role assigned'}</p>
         </div>
       </div>
     );

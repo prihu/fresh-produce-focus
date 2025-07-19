@@ -9,6 +9,7 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   isLoading: boolean; // Alias for loading
+  rolesLoading: boolean; // New state to track role fetching
   userRole: string | null; // Primary role for the user
   hasRole: (role: string) => boolean;
   canAccessOrder: (packerIdFromOrder: string | null) => boolean;
@@ -25,6 +26,7 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [rolesLoading, setRolesLoading] = useState(false);
   const [userRoles, setUserRoles] = useState<string[]>([]);
   const { toast } = useToast();
 
@@ -32,6 +34,9 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
   const fetchUserRoles = async (userId: string, retryCount = 0): Promise<string[]> => {
     const maxRetries = 1; // Reduced from 3 to 1
     const retryDelay = 1000; // Fixed 1 second delay instead of exponential backoff
+    
+    // Set rolesLoading to true when starting role fetch
+    setRolesLoading(true);
     
     try {
       console.log(`Fetching user roles (attempt ${retryCount + 1})...`);
@@ -78,6 +83,9 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
       }
       
       return []; // Fail closed - no roles if we can't verify
+    } finally {
+      // Always set rolesLoading to false when role fetch completes
+      setRolesLoading(false);
     }
   };
 
@@ -99,6 +107,7 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
         const timeoutPromise = new Promise<string[]>((resolve) => {
           setTimeout(() => {
             console.warn('Role fetch timed out, proceeding with limited access');
+            setRolesLoading(false); // Ensure rolesLoading is set to false on timeout
             resolve([]);
           }, 5000); // 5 second timeout for role fetching
         });
@@ -115,6 +124,7 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
         });
       } else {
         setUserRoles([]);
+        setRolesLoading(false); // Ensure rolesLoading is false when no user
         
         // Log sign-out events
         if (event === 'SIGNED_OUT') {
@@ -139,6 +149,8 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
         description: "There was an issue with authentication. Please try signing in again.",
         variant: "destructive",
       });
+      
+      setRolesLoading(false); // Ensure rolesLoading is false on error
     } finally {
       // Always clear loading state
       setLoading(false);
@@ -154,6 +166,7 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
       if (mounted && loading) {
         console.warn('Auth initialization timed out after 10 seconds');
         setLoading(false);
+        setRolesLoading(false); // Ensure rolesLoading is false on timeout
         toast({
           title: "Connection Issue",
           description: "Taking longer than expected. You may have limited access.",
@@ -191,6 +204,7 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
         
         if (mounted) {
           setLoading(false);
+          setRolesLoading(false); // Ensure rolesLoading is false on error
           clearTimeout(initializationTimeout);
           toast({
             title: "Startup Error",
@@ -297,6 +311,7 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
     session,
     loading,
     isLoading: loading, // Alias for loading
+    rolesLoading, // Export rolesLoading state
     userRole,
     hasRole,
     canAccessOrder,
