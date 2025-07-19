@@ -97,6 +97,37 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
         timestamp: new Date().toISOString()
       });
 
+      // Handle token refresh events
+      if (event === 'TOKEN_REFRESHED') {
+        console.log('Token refreshed successfully', {
+          userId: newSession?.user?.id,
+          timestamp: new Date().toISOString()
+        });
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+        return; // No need to refetch roles for token refresh
+      }
+
+      if (event === 'TOKEN_REFRESH_FAILED') {
+        console.error('Token refresh failed', {
+          userId: user?.id,
+          timestamp: new Date().toISOString()
+        });
+        
+        toast({
+          title: "Session Expired",
+          description: "Your session has expired. Please sign in again.",
+          variant: "destructive",
+        });
+        
+        // Clear auth state on token refresh failure
+        setSession(null);
+        setUser(null);
+        setUserRoles([]);
+        setRolesLoading(false);
+        return;
+      }
+
       setSession(newSession);
       setUser(newSession?.user ?? null);
 
