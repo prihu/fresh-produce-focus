@@ -114,7 +114,7 @@ const validateImage = (blob: Blob): { isValid: boolean; error?: string } => {
   return { isValid: true };
 };
 
-// Validate analysis response structure
+// Enhanced validation to handle non-produce items with 0 scores
 const validateAnalysisResponse = (data: any): { isValid: boolean; error?: string } => {
   if (!data || typeof data !== 'object') {
     return { isValid: false, error: 'Response is not an object' };
@@ -127,14 +127,38 @@ const validateAnalysisResponse = (data: any): { isValid: boolean; error?: string
     }
   }
 
-  // Validate score ranges
-  const { freshness_score, quality_score } = data;
-  if (typeof freshness_score !== 'number' || freshness_score < 1 || freshness_score > 10) {
-    return { isValid: false, error: `Invalid freshness_score: ${freshness_score} (must be 1-10)` };
-  }
+  const { freshness_score, quality_score, item_name } = data;
   
-  if (typeof quality_score !== 'number' || quality_score < 1 || quality_score > 10) {
-    return { isValid: false, error: `Invalid quality_score: ${quality_score} (must be 1-10)` };
+  // Check if this is a non-produce item
+  const isNonProduce = !item_name || 
+    item_name.toLowerCase().includes('not produce') ||
+    item_name.toLowerCase().includes('no produce') ||
+    item_name.toLowerCase().includes('unidentified') ||
+    item_name.toLowerCase().includes('unclear') ||
+    item_name.toLowerCase().includes('not food');
+
+  // For non-produce items, allow 0 scores
+  if (isNonProduce) {
+    if (typeof freshness_score !== 'number' || (freshness_score !== 0 && (freshness_score < 1 || freshness_score > 10))) {
+      return { isValid: false, error: `Invalid freshness_score for non-produce: ${freshness_score} (must be 0 or 1-10)` };
+    }
+    
+    if (typeof quality_score !== 'number' || (quality_score !== 0 && (quality_score < 1 || quality_score > 10))) {
+      return { isValid: false, error: `Invalid quality_score for non-produce: ${quality_score} (must be 0 or 1-10)` };
+    }
+    
+    console.log('✅ Non-produce item validated with 0 scores:', { item_name, freshness_score, quality_score });
+  } else {
+    // For produce items, require 1-10 scores
+    if (typeof freshness_score !== 'number' || freshness_score < 1 || freshness_score > 10) {
+      return { isValid: false, error: `Invalid freshness_score for produce: ${freshness_score} (must be 1-10)` };
+    }
+    
+    if (typeof quality_score !== 'number' || quality_score < 1 || quality_score > 10) {
+      return { isValid: false, error: `Invalid quality_score for produce: ${quality_score} (must be 1-10)` };
+    }
+    
+    console.log('✅ Produce item validated with valid scores:', { item_name, freshness_score, quality_score });
   }
 
   return { isValid: true };
@@ -367,20 +391,19 @@ serve(async (req) => {
               content: [
                 {
                   type: 'text',
-                  text: `You are a produce quality expert for Zepto grocery delivery. Analyze this produce image and provide your response in PURE JSON format only - no markdown, no code blocks, no extra text.
+                  text: `You are a produce quality expert for Zepto grocery delivery. Analyze this image and provide your response in PURE JSON format only - no markdown, no code blocks, no extra text.
 
 Respond with this EXACT JSON structure:
 {
-  "item_name": "exact produce name",
+  "item_name": "exact produce name or 'not produce'",
   "freshness_score": number,
   "quality_score": number,
   "description": "brief condition description"
 }
 
 Requirements:
-- Freshness/quality scores must be integers between 1-10
-- Only identify actual produce items (fruits, vegetables)
-- If not produce, set item_name to "not produce"
+- If this is produce (fruits/vegetables): scores must be integers 1-10
+- If NOT produce: set item_name to "not produce" and scores to 0
 - Be strict with quality standards for grocery delivery
 - Return ONLY the JSON object, nothing else`
                 },
@@ -423,7 +446,7 @@ Requirements:
         throw new Error(`Invalid AI response format: ${parseError.message}`);
       }
 
-      // Validate analysis data structure
+      // Validate analysis data structure with enhanced non-produce handling
       const structureValidation = validateAnalysisResponse(analysisData);
       if (!structureValidation.isValid) {
         throw new Error(`Analysis validation failed: ${structureValidation.error}`);
@@ -434,7 +457,8 @@ Requirements:
       console.log('✅ Analysis completed successfully:', {
         itemName: item_name,
         freshnessScore: freshness_score,
-        qualityScore: quality_score
+        qualityScore: quality_score,
+        isNonProduce: freshness_score === 0 && quality_score === 0
       });
 
       // Update database with analysis results

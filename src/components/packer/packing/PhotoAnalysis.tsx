@@ -80,7 +80,7 @@ const PhotoAnalysis = ({ packingPhoto, onStatusUpdate }: PhotoAnalysisProps) => 
                 .from('packing_photos')
                 .update({ 
                     ai_analysis_status: 'pending',
-                    description: `Retry #${currentRetryCount} started at ${new Date().toISOString()}`
+                    description: `Manual retry #${currentRetryCount} started at ${new Date().toISOString()}`
                 })
                 .eq('id', packingPhoto.id);
 
@@ -98,10 +98,10 @@ const PhotoAnalysis = ({ packingPhoto, onStatusUpdate }: PhotoAnalysisProps) => 
             onStatusUpdate({
                 ...packingPhoto,
                 ai_analysis_status: 'pending',
-                description: `Retry #${currentRetryCount} started at ${new Date().toISOString()}`
+                description: `Manual retry #${currentRetryCount} started at ${new Date().toISOString()}`
             });
 
-            // Call edge function with retry logic
+            // Call edge function with single retry attempt
             const { data: functionData, error: functionError } = await supabase.functions.invoke('analyze-image', {
                 body: { packing_photo_id: packingPhoto.id },
                 headers: {
@@ -119,34 +119,30 @@ const PhotoAnalysis = ({ packingPhoto, onStatusUpdate }: PhotoAnalysisProps) => 
             
             toast({
                 title: "Analysis Restarted",
-                description: `AI analysis attempt #${currentRetryCount} is processing. This typically takes 30-60 seconds.`,
+                description: `Manual retry attempt #${currentRetryCount} is processing. This typically takes 30-60 seconds.`,
             });
 
-            // Exponential backoff for next retry if needed
-            const backoffDelay = Math.min(1000 * Math.pow(2, currentRetryCount - 1), 30000); // Max 30 seconds
-            console.log(`Next retry would have ${backoffDelay}ms backoff delay`);
-
         } catch (error: any) {
-            console.error(`❌ Retry analysis #${currentRetryCount} failed:`, error);
+            console.error(`❌ Manual retry analysis #${currentRetryCount} failed:`, error);
             
             // Update status to failed
             await supabase
                 .from('packing_photos')
                 .update({ 
                     ai_analysis_status: 'failed',
-                    description: `Retry #${currentRetryCount} failed: ${error.message}`
+                    description: `Manual retry #${currentRetryCount} failed: ${error.message}`
                 })
                 .eq('id', packingPhoto.id);
 
-            // Determine if we should allow more retries
-            const maxRetries = 3;
+            // Reduced max retries from 3 to 2 for manual retries
+            const maxRetries = 2;
             const canRetryMore = currentRetryCount < maxRetries;
             
             toast({
                 title: "Retry Failed",
                 description: canRetryMore 
-                    ? `Attempt ${currentRetryCount} failed. You can try ${maxRetries - currentRetryCount} more times.`
-                    : "All retry attempts exhausted. Please try uploading a new photo or contact support.",
+                    ? `Manual attempt ${currentRetryCount} failed. You can try ${maxRetries - currentRetryCount} more times, or upload a new photo.`
+                    : "All manual retry attempts exhausted. Please try uploading a new photo with better lighting and focus.",
                 variant: "destructive",
             });
         } finally {
@@ -179,7 +175,7 @@ const PhotoAnalysis = ({ packingPhoto, onStatusUpdate }: PhotoAnalysisProps) => 
                         </div>
                         <Button
                             onClick={handleRetryAnalysis}
-                            disabled={isRetrying || retryCount >= 3}
+                            disabled={isRetrying || retryCount >= 2}
                             variant="outline"
                             size="sm"
                             className="text-blue-600 border-blue-200 hover:bg-blue-50"
@@ -192,14 +188,14 @@ const PhotoAnalysis = ({ packingPhoto, onStatusUpdate }: PhotoAnalysisProps) => 
                             ) : (
                                 <>
                                     <RefreshCw className="h-3 w-3 mr-1" />
-                                    Retry ({retryCount}/3)
+                                    Retry ({retryCount}/2)
                                 </>
                             )}
                         </Button>
                     </div>
                     <p className="text-blue-700 text-sm">
                         AI is analyzing the image using advanced processing. This typically takes 30-60 seconds.
-                        {retryCount > 0 && ` (Attempt ${retryCount + 1})`}
+                        {retryCount > 0 && ` (Manual attempt ${retryCount + 1})`}
                     </p>
                     {packingPhoto.description && (
                         <p className="text-blue-600 text-xs mt-2 font-mono">
@@ -218,7 +214,7 @@ const PhotoAnalysis = ({ packingPhoto, onStatusUpdate }: PhotoAnalysisProps) => 
                         </div>
                         <Button
                             onClick={handleRetryAnalysis}
-                            disabled={isRetrying || retryCount >= 3}
+                            disabled={isRetrying || retryCount >= 2}
                             variant="outline"
                             size="sm"
                             className="text-red-600 border-red-200 hover:bg-red-50"
@@ -228,19 +224,19 @@ const PhotoAnalysis = ({ packingPhoto, onStatusUpdate }: PhotoAnalysisProps) => 
                                     <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
                                     Retrying...
                                 </>
-                            ) : retryCount >= 3 ? (
-                                'Max Retries Reached'
+                            ) : retryCount >= 2 ? (
+                                'Upload New Photo'
                             ) : (
                                 <>
                                     <RefreshCw className="h-3 w-3 mr-1" />
-                                    Retry ({retryCount}/3)
+                                    Retry ({retryCount}/2)
                                 </>
                             )}
                         </Button>
                     </div>
                     <div className="text-red-700 text-sm space-y-2">
                         <p>
-                            The image analysis failed. {retryCount < 3 ? 'You can retry the analysis or' : 'Please'} try uploading a new photo.
+                            The image analysis failed. {retryCount < 2 ? 'You can retry the analysis or' : 'Please'} try uploading a new photo with better lighting and clear focus on the produce item.
                         </p>
                         {packingPhoto.description && (
                             <div className="bg-red-100 border border-red-200 rounded p-2">
@@ -249,9 +245,9 @@ const PhotoAnalysis = ({ packingPhoto, onStatusUpdate }: PhotoAnalysisProps) => 
                                 </p>
                             </div>
                         )}
-                        {retryCount >= 3 && (
+                        {retryCount >= 2 && (
                             <p className="font-medium text-red-800">
-                                All retry attempts have been exhausted. Please upload a new photo or contact support if the issue persists.
+                                Manual retry attempts have been exhausted. Please upload a new photo with better lighting, clear focus, and ensure the produce item is clearly visible.
                             </p>
                         )}
                     </div>
@@ -274,7 +270,7 @@ const PhotoAnalysis = ({ packingPhoto, onStatusUpdate }: PhotoAnalysisProps) => 
                             </p>
                             <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded">
                                 <p className="text-orange-800 text-sm font-medium">
-                                    ⚠️ Please retake the photo with the actual produce item for quality assessment.
+                                    ⚠️ Please retake the photo with the actual produce item for quality assessment. Ensure the produce is clearly visible and well-lit.
                                 </p>
                             </div>
                         </div>

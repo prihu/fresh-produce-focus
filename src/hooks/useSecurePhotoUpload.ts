@@ -42,7 +42,8 @@ export const useSecurePhotoUpload = ({ orderId, productId, onPhotoUploaded }: Us
     }
   };
 
-  const triggerAnalysisWithRetry = async (photoId: string, maxRetries = 3) => {
+  // Reduced retry attempts from 3 to 1 to prevent excessive refresh cycles
+  const triggerAnalysisWithRetry = async (photoId: string, maxRetries = 1) => {
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         console.log(`Analysis attempt ${attempt + 1} for photo:`, photoId);
@@ -95,12 +96,12 @@ export const useSecurePhotoUpload = ({ orderId, productId, onPhotoUploaded }: Us
 
           toast({
             title: "Analysis Failed",
-            description: `Could not start AI analysis after ${maxRetries} attempts. Please use the retry button.`,
+            description: `Could not start AI analysis. The analysis may have failed due to image content or processing issues. Please try uploading a new photo.`,
             variant: "destructive",
           });
         } else {
-          // Wait before next retry with exponential backoff
-          const delay = Math.pow(2, attempt) * 1000;
+          // Wait before next retry - reduced delay
+          const delay = 1000; // Fixed 1 second delay instead of exponential backoff
           await new Promise(resolve => setTimeout(resolve, delay));
         }
       }
@@ -257,7 +258,7 @@ export const useSecurePhotoUpload = ({ orderId, productId, onPhotoUploaded }: Us
       // Call onPhotoUploaded immediately after successful upload
       onPhotoUploaded(photoRecord);
 
-      // Trigger AI analysis with enhanced retry logic
+      // Trigger AI analysis with reduced retry logic (1 attempt instead of 3)
       await triggerAnalysisWithRetry(photoRecord.id);
 
     } catch (error: any) {
