@@ -1,5 +1,6 @@
 
 import OpenAIHealthCheck from '@/components/OpenAIHealthCheck';
+import TestOpenAI from '@/components/TestOpenAI';
 
 const HealthCheck = () => {
   return (
@@ -12,7 +13,8 @@ const HealthCheck = () => {
           </p>
         </div>
         
-        <div className="flex justify-center">
+        <div className="flex flex-col items-center gap-8">
+          <TestOpenAI />
           <OpenAIHealthCheck />
         </div>
       </div>

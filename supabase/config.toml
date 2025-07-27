@@ -11,6 +11,9 @@ max_rows = 1000
 [functions.analyze-image]
 verify_jwt = true
 
+[functions.test-openai-connectivity]
+verify_jwt = false
+
 [db]
 port = 54322
 shadow_port = 54320

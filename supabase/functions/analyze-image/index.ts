@@ -369,29 +369,29 @@ serve(async (req) => {
       );
     }
 
-    console.log('🤖 Starting OpenAI analysis');
+    console.log('🤖 Starting OpenAI analysis with detailed debugging');
+    console.log('📊 Image details being sent to OpenAI:', {
+      mimeType: imageData.type,
+      size: imageData.size,
+      sizeInMB: Math.round(imageData.size / 1024 / 1024 * 100) / 100,
+      base64Length: base64Image.length,
+      base64Sample: base64Image.substring(0, 50) + '...'
+    });
 
     // Call OpenAI with timeout and retry logic
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
 
     try {
-      const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openaiApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        signal: controller.signal,
-        body: JSON.stringify({
-          model: 'gpt-4o',
-          messages: [
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'text',
-                  text: `You are a produce quality expert for Zepto grocery delivery. Analyze this image and provide your response in PURE JSON format only - no markdown, no code blocks, no extra text.
+      const requestPayload = {
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: `You are a produce quality expert for Zepto grocery delivery. Analyze this image and provide your response in PURE JSON format only - no markdown, no code blocks, no extra text.
 
 Respond with this EXACT JSON structure:
 {
@@ -406,26 +406,57 @@ Requirements:
 - If NOT produce: set item_name to "not produce" and scores to 0
 - Be strict with quality standards for grocery delivery
 - Return ONLY the JSON object, nothing else`
-                },
-                {
-                  type: 'image_url',
-                  image_url: {
-                    url: `data:image/jpeg;base64,${base64Image}`
-                  }
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: `data:image/jpeg;base64,${base64Image}`
                 }
-              ]
-            }
-          ],
-          max_tokens: 500,
-          temperature: 0.1
-        })
+              }
+            ]
+          }
+        ],
+        max_tokens: 500,
+        temperature: 0.1
+      };
+
+      console.log('📤 Sending request to OpenAI with payload size:', JSON.stringify(requestPayload).length);
+
+      const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openaiApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
+        body: JSON.stringify(requestPayload)
       });
 
       clearTimeout(timeoutId);
 
+      console.log('📥 OpenAI response received:', {
+        status: openaiResponse.status,
+        statusText: openaiResponse.statusText,
+        headers: Object.fromEntries(openaiResponse.headers.entries())
+      });
+
       if (!openaiResponse.ok) {
-        const errorText = await openaiResponse.text();
-        throw new Error(`OpenAI API error: ${openaiResponse.status} - ${errorText}`);
+        let errorDetails;
+        try {
+          errorDetails = await openaiResponse.json();
+          console.error('❌ OpenAI API error response:', errorDetails);
+        } catch {
+          errorDetails = await openaiResponse.text();
+          console.error('❌ OpenAI API error text:', errorDetails);
+        }
+        
+        const errorMessage = `OpenAI API ${openaiResponse.status}: ${
+          typeof errorDetails === 'object' 
+            ? errorDetails.error?.message || JSON.stringify(errorDetails)
+            : errorDetails
+        }`;
+        
+        throw new Error(errorMessage);
       }
 
       const aiResult = await openaiResponse.json();
