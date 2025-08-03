@@ -80,135 +80,145 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-fresh-50 to-white flex items-center justify-center p-4">
-      <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+    <div className="min-h-screen bg-gradient-to-br from-fresh-50 to-white">
+      <div className="flex flex-col lg:flex-row min-h-screen">
         {/* Value Proposition Section */}
-        <div className="space-y-6 text-center lg:text-left order-1 lg:order-none">
-          <div className="space-y-4">
-            <h1 className="text-4xl font-bold text-gray-900">
-              Zepto Freshness Checker
-            </h1>
-            <p className="text-xl text-gray-600">
-              Ensuring the highest quality produce for our customers, 24x7
-            </p>
-          </div>
-          
-          <div className="space-y-4">
-            <div className="flex items-center space-x-3">
-              <Shield className="h-8 w-8 text-fresh-500" />
-              <div>
-                <h3 className="font-semibold text-gray-900">Reliable Quality Assurance</h3>
-                <p className="text-gray-600">AI-powered freshness detection with manual verification</p>
-              </div>
+        <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
+          <div className="w-full max-w-lg space-y-8">
+            <div className="space-y-4 text-center lg:text-left animate-fade-in-up">
+              <h1 className="text-heading-primary text-3xl md:text-4xl lg:text-5xl">
+                Zepto Freshness Checker
+              </h1>
+              <p className="text-body-secondary text-lg md:text-xl">
+                Ensuring the highest quality produce for our customers, 24x7
+              </p>
             </div>
             
-            <div className="flex items-center space-x-3">
-              <Clock className="h-8 w-8 text-fresh-500" />
-              <div>
-                <h3 className="font-semibold text-gray-900">24x7 Operations</h3>
-                <p className="text-gray-600">Round-the-clock quality monitoring and packing</p>
+            <div className="space-y-6 animate-fade-in-up animate-delay-200">
+              <div className="flex items-start space-x-4 text-center lg:text-left">
+                <Shield className="h-8 w-8 text-fresh-500 mt-1 flex-shrink-0" />
+                <div>
+                  <h3 className="text-heading-tertiary text-base md:text-lg mb-2">Reliable Quality Assurance</h3>
+                  <p className="text-body-secondary text-sm md:text-base">AI-powered freshness detection with manual verification</p>
+                </div>
               </div>
-            </div>
-            
-            <div className="flex items-center space-x-3">
-              <CheckCircle className="h-8 w-8 text-fresh-500" />
-              <div>
-                <h3 className="font-semibold text-gray-900">Proven Results</h3>
-                <p className="text-gray-600">Reducing refunds and improving customer satisfaction</p>
+              
+              <div className="flex items-start space-x-4 text-center lg:text-left">
+                <Clock className="h-8 w-8 text-fresh-500 mt-1 flex-shrink-0" />
+                <div>
+                  <h3 className="text-heading-tertiary text-base md:text-lg mb-2">24x7 Operations</h3>
+                  <p className="text-body-secondary text-sm md:text-base">Round-the-clock quality monitoring and packing</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start space-x-4 text-center lg:text-left">
+                <CheckCircle className="h-8 w-8 text-fresh-500 mt-1 flex-shrink-0" />
+                <div>
+                  <h3 className="text-heading-tertiary text-base md:text-lg mb-2">Proven Results</h3>
+                  <p className="text-body-secondary text-sm md:text-base">Reducing refunds and improving customer satisfaction</p>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
         {/* Auth Form Section */}
-        <Card className="w-full max-w-md mx-auto">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl text-gray-900">
-              {isPasswordReset ? 'Reset Password' : isSignUp ? 'Join Our Team' : 'Welcome Back'}
-            </CardTitle>
-            <CardDescription>
-              {isPasswordReset 
-                ? 'Enter your email to receive a password reset link'
-                : isSignUp 
-                  ? 'Help us maintain the highest freshness standards' 
-                  : 'Sign in to your quality assurance dashboard'
-              }
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleAuth} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  disabled={isLoading}
-                  placeholder="Enter your email"
-                />
-              </div>
-              {!isPasswordReset && (
+        <div className="flex-1 flex items-center justify-center p-6 lg:p-12 bg-white lg:bg-fresh-50/30">
+          <Card className="w-full max-w-md shadow-fresh-lg animate-fade-in-up animate-delay-100">
+            <CardHeader className="text-center space-y-3">
+              <CardTitle className="text-heading-primary text-xl md:text-2xl">
+                {isPasswordReset ? 'Reset Password' : isSignUp ? 'Join Our Team' : 'Welcome Back'}
+              </CardTitle>
+              <CardDescription className="text-body-secondary">
+                {isPasswordReset 
+                  ? 'Enter your email to receive a password reset link'
+                  : isSignUp 
+                    ? 'Help us maintain the highest freshness standards' 
+                    : 'Sign in to your quality assurance dashboard'
+                }
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <form onSubmit={handleAuth} className="space-y-5">
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="email" className="text-body-primary font-medium">Email</Label>
                   <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     required
                     disabled={isLoading}
-                    placeholder="Enter your password"
-                    minLength={6}
+                    placeholder="Enter your email"
+                    className="touch-target focus-visible"
                   />
                 </div>
-              )}
-
-              <Button type="submit" className="w-full" disabled={isLoading || (isPasswordReset && !email.trim())}>
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {isPasswordReset ? 'Sending Reset Email...' : isSignUp ? 'Creating Account...' : 'Signing In...'}
-                  </>
-                ) : (
-                  isPasswordReset ? 'Send Reset Email' : isSignUp ? 'Create Account' : 'Sign In'
+                {!isPasswordReset && (
+                  <div className="space-y-2">
+                    <Label htmlFor="password" className="text-body-primary font-medium">Password</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      disabled={isLoading}
+                      placeholder="Enter your password"
+                      minLength={6}
+                      className="touch-target focus-visible"
+                    />
+                  </div>
                 )}
-              </Button>
-            </form>
 
-            <Separator className="my-6" />
+                <Button 
+                  type="submit" 
+                  className="w-full touch-target-lg press-scale transition-all duration-200" 
+                  disabled={isLoading || (isPasswordReset && !email.trim())}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {isPasswordReset ? 'Sending Reset Email...' : isSignUp ? 'Creating Account...' : 'Signing In...'}
+                    </>
+                  ) : (
+                    isPasswordReset ? 'Send Reset Email' : isSignUp ? 'Create Account' : 'Sign In'
+                  )}
+                </Button>
+              </form>
 
-            <div className="space-y-2">
-              {!isPasswordReset && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="w-full"
-                  onClick={() => setIsSignUp(!isSignUp)}
-                  disabled={isLoading}
-                >
-                  {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
-                </Button>
-              )}
-              
-              {!isSignUp && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="w-full text-sm"
-                  onClick={() => {
-                    setIsPasswordReset(!isPasswordReset);
-                    setPassword('');
-                  }}
-                  disabled={isLoading}
-                >
-                  {isPasswordReset ? 'Back to Sign In' : 'Forgot your password?'}
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+              <Separator className="my-6" />
+
+              <div className="space-y-3">
+                {!isPasswordReset && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full touch-target text-interactive transition-all duration-200"
+                    onClick={() => setIsSignUp(!isSignUp)}
+                    disabled={isLoading}
+                  >
+                    {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+                  </Button>
+                )}
+                
+                {!isSignUp && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full touch-target text-sm text-interactive-muted transition-all duration-200"
+                    onClick={() => {
+                      setIsPasswordReset(!isPasswordReset);
+                      setPassword('');
+                    }}
+                    disabled={isLoading}
+                  >
+                    {isPasswordReset ? 'Back to Sign In' : 'Forgot your password?'}
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
