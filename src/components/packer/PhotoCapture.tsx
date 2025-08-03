@@ -1,11 +1,11 @@
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Tables } from '@/integrations/supabase/types';
 import { useSecurePhotoUpload } from '@/hooks/useSecurePhotoUpload';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Camera, RefreshCw, Check, Loader2, AlertTriangle, Upload } from 'lucide-react';
+import { Camera, RefreshCw, Check, Loader2, Upload } from 'lucide-react';
 import { SecurityUtils } from '@/utils/security';
 
 type PackingPhoto = Tables<'packing_photos'>;
@@ -19,73 +19,17 @@ interface PhotoCaptureProps {
 const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps) => {
     const { toast } = useToast();
     const { uploadPhoto, isUploading } = useSecurePhotoUpload({ orderId, productId, onPhotoUploaded });
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const cameraInputRef = useRef<HTMLInputElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     
-    const [stream, setStream] = useState<MediaStream | null>(null);
     const [capturedImage, setCapturedImage] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
     const [uploadMethod, setUploadMethod] = useState<'camera' | 'file'>('camera');
-
-    const startCamera = async () => {
-        if (capturedImage || uploadMethod !== 'camera') return;
-        
-        setIsLoading(true);
-        setError(null);
-        
-        try {
-            const mediaStream = await navigator.mediaDevices.getUserMedia({
-                video: { 
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 },
-                    facingMode: 'environment'
-                }
-            });
-            
-            setStream(mediaStream);
-            if (videoRef.current) {
-                videoRef.current.srcObject = mediaStream;
-            }
-        } catch (err: any) {
-            const errorMessage = err.name === 'NotAllowedError' 
-                ? 'Camera permission denied. Please allow camera access or use file upload instead.'
-                : 'Failed to access camera. Please try file upload instead.';
-            setError(errorMessage);
-            console.error('Camera error:', err);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const stopCamera = () => {
-        if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-            setStream(null);
-        }
-        if (videoRef.current) {
-            videoRef.current.srcObject = null;
-        }
-    };
 
     const cleanupCapturedImage = () => {
         if (capturedImage && capturedImage.startsWith('blob:')) {
             URL.revokeObjectURL(capturedImage);
         }
     };
-
-    useEffect(() => {
-        if (uploadMethod === 'camera' && !capturedImage) {
-            startCamera();
-        } else if (uploadMethod === 'file') {
-            stopCamera();
-        }
-        return () => {
-            stopCamera();
-            cleanupCapturedImage();
-        };
-    }, [uploadMethod, capturedImage]);
 
     const validateImageForAnalysis = (canvas: HTMLCanvasElement): boolean => {
         // Check canvas size
@@ -115,43 +59,8 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
         return true;
     };
 
-    const handleCapture = () => {
-        if (!videoRef.current || !canvasRef.current) return;
-
-        const video = videoRef.current;
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext('2d');
-
-        if (!ctx) return;
-
-        cleanupCapturedImage();
-
-        // Optimize dimensions for OpenAI processing
-        const maxWidth = 1920;
-        const maxHeight = 1080;
-        let { videoWidth: width, videoHeight: height } = video;
-        
-        if (width > maxWidth || height > maxHeight) {
-            const ratio = Math.min(maxWidth / width, maxHeight / height);
-            width *= ratio;
-            height *= ratio;
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        ctx.drawImage(video, 0, 0, width, height);
-
-        // Validate before converting
-        if (!validateImageForAnalysis(canvas)) {
-            return;
-        }
-
-        // Convert to JPEG with high quality for better OpenAI compatibility
-        const imageData = canvas.toDataURL('image/jpeg', 0.9);
-        console.log('Image captured as JPEG, size:', Math.round((imageData.length * 3) / 4 / 1024), 'KB');
-        
-        setCapturedImage(imageData);
-        stopCamera();
+    const handleCameraCapture = () => {
+        cameraInputRef.current?.click();
     };
 
     const convertFileToJpeg = (file: File): Promise<string> => {
@@ -236,6 +145,9 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
+        if (cameraInputRef.current) {
+            cameraInputRef.current.value = '';
+        }
     };
 
     const handleUpload = async () => {
@@ -269,35 +181,36 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
                 </TabsList>
 
                 <TabsContent value="camera" className="mt-4">
-                    <div className="w-full max-w-2xl bg-black rounded-lg overflow-hidden relative aspect-video flex items-center justify-center">
+                    <div className="w-full max-w-2xl">
                         {capturedImage ? (
-                            <img src={capturedImage} alt="Captured produce" className="w-full h-auto"/>
+                            <div className="bg-black rounded-lg overflow-hidden relative aspect-video flex items-center justify-center">
+                                <img src={capturedImage} alt="Captured produce" className="w-full h-auto"/>
+                            </div>
                         ) : (
-                            <>
-                                <video 
-                                    ref={videoRef} 
-                                    autoPlay 
-                                    playsInline 
-                                    muted 
-                                    className={`w-full h-auto ${isLoading || error ? 'hidden' : 'block'}`} 
+                            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center bg-gray-50">
+                                <Camera className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                                <p className="text-lg font-medium text-gray-900 mb-2">Use Device Camera</p>
+                                <p className="text-sm text-gray-500 mb-4">
+                                    Tap to open your device's camera and capture a photo
+                                </p>
+                                <Button 
+                                    variant="outline" 
+                                    onClick={handleCameraCapture}
+                                    disabled={isUploading}
+                                    className="min-h-[48px] min-w-[120px]"
+                                >
+                                    <Camera className="mr-2 h-4 w-4" />
+                                    Open Camera
+                                </Button>
+                                <input
+                                    ref={cameraInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    capture="environment"
+                                    onChange={handleFileSelect}
+                                    className="hidden"
                                 />
-                                <canvas ref={canvasRef} className="hidden" />
-
-                                {isLoading && (
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center text-white space-y-2">
-                                        <Loader2 className="h-8 w-8 animate-spin" />
-                                        <p>Starting camera...</p>
-                                    </div>
-                                )}
-
-                                {error && !isLoading && (
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-4 text-center space-y-2">
-                                        <AlertTriangle className="h-8 w-8 text-destructive" />
-                                        <p className="text-destructive font-semibold">Camera Error</p>
-                                        <p className="text-sm text-muted-foreground">{error}</p>
-                                    </div>
-                                )}
-                            </>
+                            </div>
                         )}
                     </div>
                 </TabsContent>
@@ -319,6 +232,7 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
                                     variant="outline" 
                                     onClick={() => fileInputRef.current?.click()}
                                     disabled={isUploading}
+                                    className="min-h-[48px] min-w-[120px]"
                                 >
                                     Choose File
                                 </Button>
@@ -358,8 +272,13 @@ const PhotoCapture = ({ orderId, productId, onPhotoUploaded }: PhotoCaptureProps
                     </>
                 ) : (
                     uploadMethod === 'camera' && (
-                        <Button onClick={handleCapture} disabled={!stream || isLoading || !!error}>
-                            <Camera className="mr-2 h-4 w-4" /> Capture
+                        <Button 
+                            onClick={handleCameraCapture} 
+                            disabled={isUploading}
+                            className="min-h-[48px]"
+                        >
+                            <Camera className="mr-2 h-4 w-4" /> 
+                            Open Camera
                         </Button>
                     )
                 )}
