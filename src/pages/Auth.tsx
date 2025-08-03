@@ -81,9 +81,9 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-fresh-50 to-white flex items-center justify-center p-4">
-      <div className="w-full max-w-4xl grid lg:grid-cols-2 gap-8 items-center">
+      <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
         {/* Value Proposition Section */}
-        <div className="hidden lg:block space-y-6">
+        <div className="space-y-6 text-center lg:text-left order-1 lg:order-none">
           <div className="space-y-4">
             <h1 className="text-4xl font-bold text-gray-900">
               Zepto Freshness Checker
