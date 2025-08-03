@@ -29,14 +29,10 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
   const [userRoles, setUserRoles] = useState<string[]>([]);
   const { toast } = useToast();
 
-  // Simplified role fetching without internal rolesLoading management
-  const fetchUserRoles = async (userId: string, retryCount = 0): Promise<string[]> => {
-    const maxRetries = 1;
-    const retryDelay = 1000;
-    
+  // Simple role fetching - no retry logic to avoid silent failures
+  const fetchUserRoles = async (userId: string): Promise<string[]> => {
     try {
-      console.log(`Fetching user roles for user ${userId} (attempt ${retryCount + 1})...`);
-      console.log('Current auth.uid():', (await supabase.auth.getUser()).data.user?.id);
+      console.log(`Fetching user roles for user ${userId}...`);
       
       const { data, error } = await supabase
         .from('user_roles')
@@ -44,43 +40,23 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
         .eq('user_id', userId);
 
       if (error) {
-        throw new Error(`Failed to fetch user roles: ${error.message}`);
+        console.error('Role fetch error:', error);
+        throw error; // Don't wrap in new Error - preserve original
       }
 
       const roles = data?.map(r => r.role) || [];
       console.log('User roles fetched successfully:', roles);
       return roles;
     } catch (error: any) {
-      console.error(`Role fetch attempt ${retryCount + 1} failed:`, error);
+      console.error('Failed to fetch user roles:', error);
       
-      // Retry for network errors or temporary issues
-      if (retryCount < maxRetries && (
-        error.message.includes('network') ||
-        error.message.includes('timeout') ||
-        error.message.includes('503') ||
-        error.message.includes('502')
-      )) {
-        console.log(`Retrying role fetch in ${retryDelay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
-        return fetchUserRoles(userId, retryCount + 1);
-      }
+      toast({
+        title: "Permission Error",
+        description: `Failed to load user permissions: ${error.message}`,
+        variant: "destructive",
+      });
       
-      // Log security audit event for persistent role fetch failures
-      if (retryCount >= maxRetries) {
-        console.error('Role verification failed after retries', {
-          userId,
-          error: error.message,
-          timestamp: new Date().toISOString()
-        });
-        
-        toast({
-          title: "Permission Check Failed",
-          description: "Unable to verify user permissions. Some features may be limited.",
-          variant: "destructive",
-        });
-      }
-      
-      return []; // Fail closed - no roles if we can't verify
+      throw error; // Don't return empty array - let caller handle
     }
   };
 
@@ -129,23 +105,10 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
 
       if (newSession?.user) {
         console.log('User authenticated, fetching roles...');
-        // Set rolesLoading to true ONLY when we need to fetch roles
         setRolesLoading(true);
         
         try {
-          // Simplified role fetching with single timeout
-          const timeoutPromise = new Promise<string[]>((resolve) => {
-            setTimeout(() => {
-              console.warn('Role fetch timed out after 5 seconds');
-              resolve([]);
-            }, 5000);
-          });
-
-          const roles = await Promise.race([
-            fetchUserRoles(newSession.user.id),
-            timeoutPromise
-          ]);
-          
+          const roles = await fetchUserRoles(newSession.user.id);
           setUserRoles(roles);
           
           console.log('User authenticated successfully', {
@@ -155,10 +118,9 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
             timestamp: new Date().toISOString()
           });
         } catch (error: any) {
-          console.error('Error fetching user roles:', error);
+          console.error('Critical: Role fetch failed after auth:', error);
           setUserRoles([]);
         } finally {
-          // Always clear rolesLoading after role fetch attempt
           setRolesLoading(false);
         }
       } else {
@@ -198,52 +160,19 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
 
   useEffect(() => {
     let mounted = true;
-    let initializationTimeout: NodeJS.Timeout;
-    let rolesLoadingTimeout: NodeJS.Timeout;
-
-    // Add 10-second timeout for auth initialization
-    initializationTimeout = setTimeout(() => {
-      if (mounted && loading) {
-        console.warn('Auth initialization timed out after 10 seconds');
-        setLoading(false);
-        setRolesLoading(false);
-        toast({
-          title: "Connection Issue",
-          description: "Taking longer than expected. You may have limited access.",
-          variant: "destructive",
-        });
-      }
-    }, 10000);
-
-    // Add safety net for rolesLoading - never let it stay true for more than 15 seconds
-    rolesLoadingTimeout = setTimeout(() => {
-      if (mounted && rolesLoading) {
-        console.warn('Roles loading timed out after 15 seconds, forcing reset');
-        setRolesLoading(false);
-      }
-    }, 15000);
 
     const initializeAuth = async () => {
       try {
         console.log('Initializing authentication...');
         
-        const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise<{ data: { session: Session | null }, error: any }>((resolve) => {
-          setTimeout(() => {
-            console.warn('Session fetch timed out');
-            resolve({ data: { session: null }, error: { message: 'Timeout' } });
-          }, 8000);
-        });
-
-        const { data: { session }, error } = await Promise.race([sessionPromise, timeoutPromise]);
+        const { data: { session }, error } = await supabase.auth.getSession();
         
-        if (error && error.message !== 'Timeout') {
-          throw new Error(`Session initialization failed: ${error.message}`);
+        if (error) {
+          throw error;
         }
         
         if (mounted) {
           await handleAuthStateChange('INITIAL_SESSION', session);
-          clearTimeout(initializationTimeout);
         }
       } catch (error: any) {
         console.error('Auth initialization error:', error);
@@ -251,10 +180,9 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
         if (mounted) {
           setLoading(false);
           setRolesLoading(false);
-          clearTimeout(initializationTimeout);
           toast({
-            title: "Startup Error",
-            description: "Failed to initialize authentication. Please refresh the page.",
+            title: "Authentication Error",
+            description: `Failed to initialize: ${error.message}`,
             variant: "destructive",
           });
         }
@@ -273,11 +201,9 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
 
     return () => {
       mounted = false;
-      clearTimeout(initializationTimeout);
-      clearTimeout(rolesLoadingTimeout);
       subscription.unsubscribe();
     };
-  }, []); // Remove rolesLoading from dependency array
+  }, []);
 
   // Enhanced role checking with security logging
   const hasRole = (role: string): boolean => {
