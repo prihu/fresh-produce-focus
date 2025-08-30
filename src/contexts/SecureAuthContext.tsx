@@ -27,6 +27,7 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
   const [loading, setLoading] = useState(true);
   const [rolesLoading, setRolesLoading] = useState(false);
   const [userRoles, setUserRoles] = useState<string[]>([]);
+  const [rolesFetched, setRolesFetched] = useState(false); // Track if roles have been fetched
   const { toast } = useToast();
 
   // Simple role fetching - no retry logic to avoid silent failures
@@ -104,28 +105,36 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
       setUser(newSession?.user ?? null);
 
       if (newSession?.user) {
-        console.log('User authenticated, fetching roles...');
-        setRolesLoading(true);
-        
-        try {
-          const roles = await fetchUserRoles(newSession.user.id);
-          setUserRoles(roles);
+        // Only fetch roles if we haven't fetched them yet (initial auth or sign in)
+        if (!rolesFetched || event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+          console.log('User authenticated, fetching roles for the first time...');
+          setRolesLoading(true);
           
-          console.log('User authenticated successfully', {
-            userId: newSession.user.id,
-            email: newSession.user.email,
-            roles: roles,
-            timestamp: new Date().toISOString()
-          });
-        } catch (error: any) {
-          console.error('Critical: Role fetch failed after auth:', error);
-          setUserRoles([]);
-        } finally {
-          setRolesLoading(false);
+          try {
+            const roles = await fetchUserRoles(newSession.user.id);
+            setUserRoles(roles);
+            setRolesFetched(true); // Mark roles as fetched
+            
+            console.log('User authenticated successfully', {
+              userId: newSession.user.id,
+              email: newSession.user.email,
+              roles: roles,
+              timestamp: new Date().toISOString()
+            });
+          } catch (error: any) {
+            console.error('Critical: Role fetch failed after auth:', error);
+            setUserRoles([]);
+            // Don't set rolesFetched to true on error, allow retry on next auth
+          } finally {
+            setRolesLoading(false);
+          }
+        } else {
+          console.log('Token refreshed, keeping existing roles');
         }
       } else {
-        // No user - clear roles immediately
+        // No user - clear roles and reset fetched flag
         setUserRoles([]);
+        setRolesFetched(false);
         
         if (event === 'SIGNED_OUT') {
           console.log('User signed out', {
@@ -257,6 +266,7 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
       setUser(null);
       setSession(null);
       setUserRoles([]);
+      setRolesFetched(false); // Reset fetched flag on logout
       setRolesLoading(false);
       
       toast({
