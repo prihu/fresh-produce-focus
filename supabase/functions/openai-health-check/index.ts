@@ -73,11 +73,11 @@ serve(async (req) => {
           error: `HTTP ${modelsResponse.status}: ${modelsData.error?.message || 'Unknown error'}`
         });
       }
-    } catch (error: any) {
+    } catch (error) {
       healthStatus.tests.push({
         test: 'Models Endpoint',
         status: 'FAIL',
-        error: `Network error: ${error.message}`
+        error: `Network error: ${(error as Error).message}`
       });
     }
 
