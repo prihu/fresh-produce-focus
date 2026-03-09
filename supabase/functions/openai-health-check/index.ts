@@ -96,6 +96,8 @@ serve(async (req) => {
       healthStatus.tests.push({ test: 'Models Endpoint', status: 'FAIL', error: `Network error: ${(error as Error).message}` });
     }
 
+    const model = Deno.env.get('OPENAI_MODEL_LIGHTWEIGHT') || 'gpt-4o-mini';
+
     // Test 2: Chat completion
     try {
       const startTime = Date.now();
@@ -103,7 +105,7 @@ serve(async (req) => {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${openAIApiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
+          model,
           messages: [{ role: 'user', content: 'Say "API is working" (health check)' }],
           max_tokens: 10
         }),
