@@ -156,7 +156,7 @@ const OrderCard = ({ order }: OrderCardProps) => {
                                     <Button
                                         variant="ghost"
                                         size="icon-sm"
-                                        className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                        className="text-red-400 hover:text-destructive hover:bg-destructive/10 transition-colors"
                                         disabled={isDeleting}
                                     >
                                         <Trash2 className="h-4 w-4" />
