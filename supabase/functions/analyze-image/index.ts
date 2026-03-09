@@ -25,7 +25,7 @@ const extractJsonFromResponse = (content: string): any => {
     
     try {
       return JSON.parse(extractedJson);
-    } catch (parseError) {
+    } catch (parseError: any) {
       console.error('❌ Failed to parse extracted JSON:', parseError.message);
       throw new Error(`Failed to parse extracted JSON: ${parseError.message}`);
     }
