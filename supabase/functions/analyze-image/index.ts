@@ -335,7 +335,7 @@ serve(async (req) => {
     try {
       const arrayBuffer = await imageData.arrayBuffer();
       base64Image = await convertToBase64Safe(arrayBuffer);
-    } catch (conversionError) {
+    } catch (conversionError: any) {
       console.error('❌ Image conversion failed:', conversionError.message);
       await supabase
         .from('packing_photos')
