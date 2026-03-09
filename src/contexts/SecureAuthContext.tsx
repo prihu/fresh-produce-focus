@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -7,9 +7,9 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  isLoading: boolean; // Alias for loading
-  rolesLoading: boolean; // New state to track role fetching
-  userRole: string | null; // Primary role for the user
+  isLoading: boolean;
+  rolesLoading: boolean;
+  userRole: string | null;
   hasRole: (role: string) => boolean;
   canAccessOrder: (packerIdFromOrder: string | null) => boolean;
   signOut: () => Promise<void>;
@@ -21,20 +21,21 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+const ROLE_FETCH_TIMEOUT_MS = 10000;
+
 export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [rolesLoading, setRolesLoading] = useState(false);
   const [userRoles, setUserRoles] = useState<string[]>([]);
-  const [rolesFetched, setRolesFetched] = useState(false); // Track if roles have been fetched
   const { toast } = useToast();
 
-  // Simple role fetching - no retry logic to avoid silent failures
+  // Use ref to avoid stale closure in onAuthStateChange callback
+  const rolesFetchedRef = useRef(false);
+
   const fetchUserRoles = async (userId: string): Promise<string[]> => {
-    try {
-      console.log(`Fetching user roles for user ${userId}...`);
-      
+    const fetchPromise = (async () => {
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
@@ -42,150 +43,95 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
 
       if (error) {
         console.error('Role fetch error:', error);
-        throw error; // Don't wrap in new Error - preserve original
+        throw error;
       }
 
-      const roles = data?.map(r => r.role) || [];
-      console.log('User roles fetched successfully:', roles);
-      return roles;
-    } catch (error: any) {
-      console.error('Failed to fetch user roles:', error);
-      
-      toast({
-        title: "Permission Error",
-        description: `Failed to load user permissions: ${error.message}`,
-        variant: "destructive",
-      });
-      
-      throw error; // Don't return empty array - let caller handle
-    }
-  };
+      return data?.map(r => r.role) || [];
+    })();
 
-  // Centralized auth state change handler with proper rolesLoading management
-  const handleAuthStateChange = async (event: string, newSession: Session | null) => {
-    try {
-      console.log('Auth event:', event, { 
-        hasUser: !!newSession?.user,
-        timestamp: new Date().toISOString()
-      });
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Role fetch timed out after 10s')), ROLE_FETCH_TIMEOUT_MS)
+    );
 
-      // Handle token refresh events - no role refetch needed
-      if (event === 'TOKEN_REFRESHED') {
-        console.log('Token refreshed successfully', {
-          userId: newSession?.user?.id,
-          timestamp: new Date().toISOString()
-        });
-        setSession(newSession);
-        setUser(newSession?.user ?? null);
-        // Don't refetch roles for token refresh - keep existing roles
-        return;
-      }
-
-      if (event === 'TOKEN_REFRESH_FAILED') {
-        console.error('Token refresh failed', {
-          userId: user?.id,
-          timestamp: new Date().toISOString()
-        });
-        
-        toast({
-          title: "Session Expired",
-          description: "Your session has expired. Please sign in again.",
-          variant: "destructive",
-        });
-        
-        // Clear auth state on token refresh failure
-        setSession(null);
-        setUser(null);
-        setUserRoles([]);
-        return;
-      }
-
-      // Update session and user for all other events
-      setSession(newSession);
-      setUser(newSession?.user ?? null);
-
-      if (newSession?.user) {
-        // Only fetch roles if we haven't fetched them yet (initial auth or sign in)
-        if (!rolesFetched || event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-          console.log('User authenticated, fetching roles for the first time...');
-          setRolesLoading(true);
-          
-          try {
-            const roles = await fetchUserRoles(newSession.user.id);
-            setUserRoles(roles);
-            setRolesFetched(true); // Mark roles as fetched
-            
-            console.log('User authenticated successfully', {
-              userId: newSession.user.id,
-              email: newSession.user.email,
-              roles: roles,
-              timestamp: new Date().toISOString()
-            });
-          } catch (error: any) {
-            console.error('Critical: Role fetch failed after auth:', error);
-            setUserRoles([]);
-            // Don't set rolesFetched to true on error, allow retry on next auth
-          } finally {
-            setRolesLoading(false);
-          }
-        } else {
-          console.log('Token refreshed, keeping existing roles');
-        }
-      } else {
-        // No user - clear roles and reset fetched flag
-        setUserRoles([]);
-        setRolesFetched(false);
-        
-        if (event === 'SIGNED_OUT') {
-          console.log('User signed out', {
-            timestamp: new Date().toISOString()
-          });
-        }
-      }
-    } catch (error: any) {
-      console.error('Critical auth state change error:', error);
-      
-      console.error('Authentication state change failed', {
-        event,
-        error: error.message,
-        userId: newSession?.user?.id,
-        timestamp: new Date().toISOString()
-      });
-      
-      toast({
-        title: "Authentication Error",
-        description: "There was an issue with authentication. Please try signing in again.",
-        variant: "destructive",
-      });
-      
-      // Clear roles on any error
-      setUserRoles([]);
-    } finally {
-      // Always clear loading and rolesLoading states
-      setLoading(false);
-      setRolesLoading(false);
-    }
+    return Promise.race([fetchPromise, timeoutPromise]);
   };
 
   useEffect(() => {
     let mounted = true;
 
+    const handleAuthEvent = async (event: string, newSession: Session | null) => {
+      if (!mounted) return;
+
+      console.log('Auth event:', event, { hasUser: !!newSession?.user });
+
+      // Token refresh — update session/user, keep roles
+      if (event === 'TOKEN_REFRESHED') {
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+        return;
+      }
+
+      if (event === 'TOKEN_REFRESH_FAILED') {
+        console.error('Token refresh failed');
+        toast({
+          title: "Session Expired",
+          description: "Your session has expired. Please sign in again.",
+          variant: "destructive",
+        });
+        setSession(null);
+        setUser(null);
+        setUserRoles([]);
+        rolesFetchedRef.current = false;
+        setLoading(false);
+        setRolesLoading(false);
+        return;
+      }
+
+      setSession(newSession);
+      setUser(newSession?.user ?? null);
+
+      if (newSession?.user) {
+        // Only fetch roles once — ref is immune to stale closures
+        if (!rolesFetchedRef.current) {
+          console.log('Fetching roles for user:', newSession.user.id);
+          setRolesLoading(true);
+          try {
+            const roles = await fetchUserRoles(newSession.user.id);
+            if (mounted) {
+              setUserRoles(roles);
+              rolesFetchedRef.current = true;
+              console.log('Roles fetched:', roles);
+            }
+          } catch (error: any) {
+            console.error('Role fetch failed:', error.message);
+            if (mounted) {
+              setUserRoles([]);
+              toast({
+                title: "Permission Error",
+                description: `Failed to load permissions: ${error.message}`,
+                variant: "destructive",
+              });
+            }
+          } finally {
+            if (mounted) setRolesLoading(false);
+          }
+        }
+      } else {
+        // Signed out — clear everything
+        setUserRoles([]);
+        rolesFetchedRef.current = false;
+      }
+
+      if (mounted) setLoading(false);
+    };
+
     const initializeAuth = async () => {
       try {
-        console.log('Initializing authentication...');
-        
         const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          throw error;
-        }
-        
-        if (mounted) {
-          await handleAuthStateChange('INITIAL_SESSION', session);
-        }
+        if (error) throw error;
+        await handleAuthEvent('INITIAL_SESSION', session);
       } catch (error: any) {
-        console.error('Auth initialization error:', error);
-        
+        console.error('Auth init error:', error);
         if (mounted) {
           setLoading(false);
           setRolesLoading(false);
@@ -201,10 +147,8 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
     initializeAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (mounted) {
-          await handleAuthStateChange(event, session);
-        }
+      (event, session) => {
+        handleAuthEvent(event, session);
       }
     );
 
@@ -214,68 +158,29 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
     };
   }, []);
 
-  // Enhanced role checking with security logging
   const hasRole = (role: string): boolean => {
-    const hasRoleResult = userRoles.includes(role);
-    
-    // Log role checks for admin actions for security monitoring
-    if (role === 'admin') {
-      console.log('Admin role check', {
-        userId: user?.id,
-        hasRole: hasRoleResult,
-        timestamp: new Date().toISOString()
-      });
-    }
-    
-    return hasRoleResult;
+    return userRoles.includes(role);
   };
 
-  // Enhanced order access validation
   const canAccessOrder = (packerIdFromOrder: string | null): boolean => {
     if (!user || !packerIdFromOrder) return false;
-    
-    const canAccess = user.id === packerIdFromOrder || hasRole('admin');
-    
-    // Log access attempts for security monitoring
-    if (!canAccess) {
-      console.warn('Unauthorized order access attempt', {
-        userId: user.id,
-        attemptedPackerId: packerIdFromOrder,
-        timestamp: new Date().toISOString()
-      });
-    }
-    
-    return canAccess;
+    return user.id === packerIdFromOrder || hasRole('admin');
   };
 
-  // Enhanced sign out with cleanup and logging
   const signOut = async (): Promise<void> => {
     try {
-      console.log('Sign out initiated', {
-        userId: user?.id,
-        timestamp: new Date().toISOString()
-      });
-      
       const { error } = await supabase.auth.signOut();
-      
-      if (error) {
-        throw new Error(`Sign out failed: ${error.message}`);
-      }
-      
-      // Clear local state
+      if (error) throw error;
+
       setUser(null);
       setSession(null);
       setUserRoles([]);
-      setRolesFetched(false); // Reset fetched flag on logout
+      rolesFetchedRef.current = false;
       setRolesLoading(false);
-      
-      toast({
-        title: "Signed Out",
-        description: "You have been successfully signed out.",
-      });
+
+      toast({ title: "Signed Out", description: "You have been successfully signed out." });
     } catch (error: any) {
       console.error('Sign out error:', error);
-      
       toast({
         title: "Sign Out Failed",
         description: "There was an issue signing out. Please try again.",
@@ -284,21 +189,13 @@ export const SecureAuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
-  // Derive primary user role (prioritize admin > packer > user)
-  const userRole = userRoles.includes('admin') ? 'admin' : 
-                   userRoles.includes('packer') ? 'packer' : 
+  const userRole = userRoles.includes('admin') ? 'admin' :
+                   userRoles.includes('packer') ? 'packer' :
                    userRoles.length > 0 ? userRoles[0] : null;
 
   const value: AuthContextType = {
-    user,
-    session,
-    loading,
-    isLoading: loading, // Alias for loading
-    rolesLoading, // Export rolesLoading state
-    userRole,
-    hasRole,
-    canAccessOrder,
-    signOut,
+    user, session, loading, isLoading: loading, rolesLoading,
+    userRole, hasRole, canAccessOrder, signOut,
   };
 
   return (

@@ -15,7 +15,12 @@ serve(async (req) => {
   try {
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
     
-    const healthStatus = {
+    const healthStatus: {
+      timestamp: string;
+      openai_api_key_configured: boolean;
+      openai_api_key_length: number;
+      tests: Array<Record<string, any>>;
+    } = {
       timestamp: new Date().toISOString(),
       openai_api_key_configured: !!openAIApiKey,
       openai_api_key_length: openAIApiKey ? openAIApiKey.length : 0,
@@ -68,11 +73,11 @@ serve(async (req) => {
           error: `HTTP ${modelsResponse.status}: ${modelsData.error?.message || 'Unknown error'}`
         });
       }
-    } catch (error: any) {
+    } catch (error) {
       healthStatus.tests.push({
         test: 'Models Endpoint',
         status: 'FAIL',
-        error: `Network error: ${error.message}`
+        error: `Network error: ${(error as Error).message}`
       });
     }
 
@@ -176,11 +181,11 @@ serve(async (req) => {
           error: `HTTP ${visionResponse.status}: ${visionData.error?.message || 'Unknown error'}`
         });
       }
-    } catch (error: any) {
+    } catch (error) {
       healthStatus.tests.push({
         test: 'Vision Endpoint',
         status: 'FAIL',
-        error: `Network error: ${error.message}`
+        error: `Network error: ${(error as Error).message}`
       });
     }
 
@@ -200,12 +205,12 @@ serve(async (req) => {
       }
     );
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Health check function error:', error);
     
     return new Response(
       JSON.stringify({ 
-        error: error.message,
+        error: (error as Error).message,
         timestamp: new Date().toISOString(),
         details: 'Health check function failed'
       }),

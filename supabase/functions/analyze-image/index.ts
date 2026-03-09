@@ -25,7 +25,7 @@ const extractJsonFromResponse = (content: string): any => {
     
     try {
       return JSON.parse(extractedJson);
-    } catch (parseError) {
+    } catch (parseError: any) {
       console.error('❌ Failed to parse extracted JSON:', parseError.message);
       throw new Error(`Failed to parse extracted JSON: ${parseError.message}`);
     }
@@ -36,7 +36,7 @@ const extractJsonFromResponse = (content: string): any => {
   if (trimmedContent.startsWith('{') && trimmedContent.endsWith('}')) {
     try {
       return JSON.parse(trimmedContent);
-    } catch (parseError) {
+    } catch (parseError: any) {
       console.error('❌ Failed to parse direct JSON:', parseError.message);
       throw new Error(`Failed to parse direct JSON: ${parseError.message}`);
     }
@@ -47,7 +47,7 @@ const extractJsonFromResponse = (content: string): any => {
   if (jsonMatch) {
     try {
       return JSON.parse(jsonMatch[0]);
-    } catch (parseError) {
+    } catch (parseError: any) {
       console.error('❌ Failed to parse found JSON object:', parseError.message);
       throw new Error(`Failed to parse found JSON object: ${parseError.message}`);
     }
@@ -85,7 +85,7 @@ const convertToBase64Safe = async (arrayBuffer: ArrayBuffer): Promise<string> =>
     });
     
     return base64String;
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Base64 conversion failed:', error.message);
     throw new Error(`Base64 conversion failed: ${error.message}`);
   }
@@ -217,7 +217,7 @@ serve(async (req) => {
         );
       }
       requestBody = JSON.parse(requestText);
-    } catch (parseError) {
+    } catch (parseError: any) {
       console.error('❌ Request body parsing failed:', parseError.message);
       return new Response(
         JSON.stringify({ error: 'Invalid JSON in request body' }),
@@ -286,7 +286,7 @@ serve(async (req) => {
       } else {
         console.log('✅ Status updated to processing');
       }
-    } catch (statusError) {
+    } catch (statusError: any) {
       console.error('❌ Status update error:', statusError);
     }
 
@@ -335,7 +335,7 @@ serve(async (req) => {
     try {
       const arrayBuffer = await imageData.arrayBuffer();
       base64Image = await convertToBase64Safe(arrayBuffer);
-    } catch (conversionError) {
+    } catch (conversionError: any) {
       console.error('❌ Image conversion failed:', conversionError.message);
       await supabase
         .from('packing_photos')
@@ -472,7 +472,7 @@ Requirements:
         analysisData = extractJsonFromResponse(content);
         console.log('✅ Successfully extracted JSON:', analysisData);
 
-      } catch (parseError) {
+      } catch (parseError: any) {
         console.error('❌ AI response parsing failed:', parseError.message);
         throw new Error(`Invalid AI response format: ${parseError.message}`);
       }
