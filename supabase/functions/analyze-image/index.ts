@@ -85,7 +85,7 @@ const convertToBase64Safe = async (arrayBuffer: ArrayBuffer): Promise<string> =>
     });
     
     return base64String;
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Base64 conversion failed:', error.message);
     throw new Error(`Base64 conversion failed: ${error.message}`);
   }
