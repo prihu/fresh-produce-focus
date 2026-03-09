@@ -392,7 +392,7 @@ serve(async (req) => {
             content: [
               {
                 type: 'text',
-                text: `You are a produce quality expert for Zepto grocery delivery. Analyze this image and provide your response in PURE JSON format only - no markdown, no code blocks, no extra text.
+                text: `You are a produce quality expert for FreshCheck AI grocery delivery. Analyze this image and provide your response in PURE JSON format only - no markdown, no code blocks, no extra text.
 
 Respond with this EXACT JSON structure:
 {
