@@ -63,6 +63,8 @@ serve(async (req) => {
       );
     }
 
+    const model = Deno.env.get('OPENAI_MODEL_PRIMARY') || 'gpt-4o';
+
     // Test with a simple text request first
     const textResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -71,7 +73,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model,
         messages: [
           { role: 'user', content: 'Respond with just the word "test"' }
         ],
