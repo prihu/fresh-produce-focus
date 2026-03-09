@@ -205,7 +205,7 @@ serve(async (req) => {
       }
     );
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Health check function error:', error);
     
     return new Response(
