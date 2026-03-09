@@ -36,7 +36,7 @@ const extractJsonFromResponse = (content: string): any => {
   if (trimmedContent.startsWith('{') && trimmedContent.endsWith('}')) {
     try {
       return JSON.parse(trimmedContent);
-    } catch (parseError) {
+    } catch (parseError: any) {
       console.error('❌ Failed to parse direct JSON:', parseError.message);
       throw new Error(`Failed to parse direct JSON: ${parseError.message}`);
     }
