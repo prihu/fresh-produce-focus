@@ -286,7 +286,7 @@ serve(async (req) => {
       } else {
         console.log('✅ Status updated to processing');
       }
-    } catch (statusError) {
+    } catch (statusError: any) {
       console.error('❌ Status update error:', statusError);
     }
 
