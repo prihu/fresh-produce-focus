@@ -181,11 +181,11 @@ serve(async (req) => {
           error: `HTTP ${visionResponse.status}: ${visionData.error?.message || 'Unknown error'}`
         });
       }
-    } catch (error: any) {
+    } catch (error) {
       healthStatus.tests.push({
         test: 'Vision Endpoint',
         status: 'FAIL',
-        error: `Network error: ${error.message}`
+        error: `Network error: ${(error as Error).message}`
       });
     }
 
