@@ -217,7 +217,7 @@ serve(async (req) => {
         );
       }
       requestBody = JSON.parse(requestText);
-    } catch (parseError) {
+    } catch (parseError: any) {
       console.error('❌ Request body parsing failed:', parseError.message);
       return new Response(
         JSON.stringify({ error: 'Invalid JSON in request body' }),
