@@ -133,7 +133,11 @@ function AppRoutes() {
         />
         <Route 
           path="/health-check" 
-          element={<HealthCheck />} 
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <HealthCheck />
+            </ProtectedRoute>
+          } 
         />
         <Route 
           path="/packer" 
