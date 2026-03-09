@@ -472,7 +472,7 @@ Requirements:
         analysisData = extractJsonFromResponse(content);
         console.log('✅ Successfully extracted JSON:', analysisData);
 
-      } catch (parseError) {
+      } catch (parseError: any) {
         console.error('❌ AI response parsing failed:', parseError.message);
         throw new Error(`Invalid AI response format: ${parseError.message}`);
       }
