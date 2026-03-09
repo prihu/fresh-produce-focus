@@ -382,9 +382,10 @@ serve(async (req) => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
 
+    const model = Deno.env.get('OPENAI_MODEL_PRIMARY') || 'gpt-4o';
     try {
       const requestPayload = {
-        model: 'gpt-4o',
+        model,
         messages: [
           {
             role: 'user',
