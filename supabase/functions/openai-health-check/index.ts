@@ -15,7 +15,12 @@ serve(async (req) => {
   try {
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
     
-    const healthStatus = {
+    const healthStatus: {
+      timestamp: string;
+      openai_api_key_configured: boolean;
+      openai_api_key_length: number;
+      tests: Array<Record<string, any>>;
+    } = {
       timestamp: new Date().toISOString(),
       openai_api_key_configured: !!openAIApiKey,
       openai_api_key_length: openAIApiKey ? openAIApiKey.length : 0,
