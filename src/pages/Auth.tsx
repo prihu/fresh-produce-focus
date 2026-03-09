@@ -90,7 +90,7 @@ const Auth = () => {
             <div className="text-center mb-12 md:mb-16 lg:mb-20 space-y-6 animate-fade-in-up">
               <div className="inline-flex items-center space-x-2 bg-fresh-100 text-fresh-700 px-4 py-2 rounded-full text-sm font-medium">
                 <CheckCircle className="h-4 w-4" />
-                <span>Zepto Quality Assurance</span>
+                <span>FreshCheck AI Quality Assurance</span>
               </div>
               
               <h1 className="text-heading-primary text-2xl md:text-4xl lg:text-5xl xl:text-6xl max-w-4xl mx-auto">
